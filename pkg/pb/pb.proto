@@ -1,0 +1,67 @@
+syntax = "proto2";
+package pb;
+
+import "gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_enum_prefix_all) = false;
+
+enum Code {
+    CodeSucc            = 0;
+    CodeBusy            = 1;
+    CodeMissing         = 2;
+    CodeInvalidChunk    = 3;
+    CodeInvalidChecksum = 4;
+    CodeOSSError        = 5;
+    CodeMaxRetries      = 6;
+}
+
+enum Cmd {
+    CmdUploadInit        = 0;
+    CmdUploadInitRsp     = 1;
+    CmdUpload            = 2;
+    CmdUploadRsp         = 3;
+    CmdUploadComplete    = 4;
+    CmdUploadCompleteRsp = 5;
+    CmdUploadContinue    = 6;
+}
+
+message InitUploadReq {
+    optional uint64 seq           = 1 [(gogoproto.nullable) = false];
+    optional string contentType   = 2 [(gogoproto.nullable) = false];
+    optional int64  contentLength = 3 [(gogoproto.nullable) = false];
+    optional int32  chunkCount    = 4 [(gogoproto.nullable) = false];
+}
+
+message InitUploadRsp {
+    optional uint64 seq  = 1 [(gogoproto.nullable) = false];
+    optional uint64 id   = 2 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+    optional Code   code = 3 [(gogoproto.nullable) = false];
+}
+
+message UploadReq {
+    optional uint64 id   = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+    optional int32 index = 2 [(gogoproto.nullable) = false];
+    optional bytes data  = 3;
+}
+
+message UploadRsp {
+    optional uint64 id   = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+    optional int32 index = 2 [(gogoproto.nullable) = false];
+    optional Code  code  = 3 [(gogoproto.nullable) = false];
+}
+
+message UploadCompleteReq {
+    optional uint64 id  = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+}
+
+message UploadCompleteRsp {
+    optional uint64 id  = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+    optional Code  code = 2 [(gogoproto.nullable) = false];
+}
+
+message UploadContinue {
+    optional uint64 id = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+}
