@@ -30,7 +30,7 @@ var (
 	id               = flag.Int("id", 0, "ID: the id of monitor client.")
 	discovery        = flag.String("discovery", "", "Get real addresses of file server from discovery server.")
 	backupServers    = flag.String("backup", "", "Backup servers if discovery server is not available, multi server split by ','.")
-	target           = flag.String("target", `C:\lib\go-elasticell-path\src\github.com\infinivision\filesyncer\data`, "Dir: monitor target dir.")
+	target           = flag.String("target", "", "Dir: monitor target dir.")
 	chunk            = flag.Int64("chunk", 1024, "Chunk size: bytes")
 	limitTraffic     = flag.Int("limit-traffic", 512, "Limit(KB): upload traffic limit.")
 	refreshInterval  = flag.Int("refresh-interval", 86400, "Interval(sec): Refresh file servers.")
