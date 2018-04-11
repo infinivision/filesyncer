@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/fagongzi/goetty"
 	"github.com/fagongzi/log"
+	"github.com/infinivision/filesyncer/pkg/codec"
 	"github.com/infinivision/filesyncer/pkg/pb"
 )
 
@@ -36,6 +37,8 @@ func (s *session) onReq(msg interface{}) {
 		s.uploadContinue(req)
 	} else if req, ok := msg.(*pb.UploadCompleteReq); ok {
 		s.uploadComplete(req)
+	} else if msg == codec.HB {
+		s.doRsp(msg)
 	}
 }
 

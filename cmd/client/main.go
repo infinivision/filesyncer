@@ -40,7 +40,8 @@ var (
 	retriesInterval  = flag.Int("retries-interval", 100, "Interval(ms): retry interval in ms.")
 	disableRetry     = flag.Bool("retry-disable", false, "Disable retry.")
 	timeoutRead      = flag.Int("timeout-read", 30, "Timeout(sec): timeout read from server.")
-	timeoutConnect   = flag.Int("timeout-connect", 30, "Timeout(sec): timeout connect to server.")
+	timeoutWrite     = flag.Int("timeout-write", 15, "Timeout(sec): timeout write heartbeat msg to server.")
+	timeoutConnect   = flag.Int("timeout-connect", 10, "Timeout(sec): timeout connect to server.")
 )
 
 func main() {
@@ -94,6 +95,7 @@ func parseCfg() *monitor.Cfg {
 	cfg.LimitTraffic = *limitTraffic * 1024
 	cfg.Chunk = *chunk
 	cfg.TimeoutRead = time.Second * time.Duration(*timeoutRead)
+	cfg.TimeoutWrite = time.Second * time.Duration(*timeoutWrite)
 	cfg.TimeoutConnect = time.Second * time.Duration(*timeoutConnect)
 	cfg.DiableRetry = *disableRetry
 	cfg.RetriesInterval = time.Second * time.Duration(*retriesInterval)

@@ -19,6 +19,9 @@ var (
 	SyncDecoder = goetty.NewIntLengthFieldBasedDecoder(syncCodec)
 	// SyncEncoder sync encoder
 	SyncEncoder = goetty.NewIntLengthFieldBasedEncoder(syncCodec)
+
+	// HB heartbeat msg
+	HB = struct{}{}
 )
 
 type codec struct {
@@ -53,6 +56,8 @@ func (codec *codec) Decode(in *goetty.ByteBuf) (bool, interface{}, error) {
 	case pb.CmdUploadContinue:
 		value = &pb.UploadContinue{}
 		break
+	case pb.CmdHB:
+		return true, HB, nil
 	}
 
 	if value != nil {
@@ -68,6 +73,10 @@ func (codec *codec) Decode(in *goetty.ByteBuf) (bool, interface{}, error) {
 
 // Encode encode
 func (codec *codec) Encode(data interface{}, out *goetty.ByteBuf) error {
+	if data == HB {
+		return out.WriteByte(byte(pb.CmdHB))
+	}
+
 	var value pbutil.PB
 	var size int
 	var cmd byte

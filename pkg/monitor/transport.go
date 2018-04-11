@@ -12,6 +12,16 @@ func (m *Monitor) connFactory(addr string) goetty.IOSession {
 		goetty.WithClientConnectTimeout(m.cfg.TimeoutConnect),
 		goetty.WithClientDecoder(codec.SyncDecoder),
 		goetty.WithClientEncoder(codec.SyncEncoder),
+		goetty.WithClientWriteTimeoutHandler(m.cfg.TimeoutWrite, func(addr string, conn goetty.IOSession) {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Warnf("net: %s is closed", err)
+				}
+			}()
+
+			log.Debugf("net: sent HB to %s", addr)
+			conn.WriteAndFlush(codec.HB)
+		}, m.tw),
 		goetty.WithClientMiddleware(goetty.NewSyncProtocolClientMiddleware(codec.FileDecoder, codec.FileEncoder, m.sendRaw, 3)))
 }
 

@@ -19,13 +19,14 @@ enum Code {
 }
 
 enum Cmd {
-    CmdUploadInit        = 0;
-    CmdUploadInitRsp     = 1;
-    CmdUpload            = 2;
-    CmdUploadRsp         = 3;
-    CmdUploadComplete    = 4;
-    CmdUploadCompleteRsp = 5;
-    CmdUploadContinue    = 6;
+    CmdHB                = 0;
+    CmdUploadInit        = 1;
+    CmdUploadInitRsp     = 2;
+    CmdUpload            = 3;
+    CmdUploadRsp         = 4;
+    CmdUploadComplete    = 5;
+    CmdUploadCompleteRsp = 6;
+    CmdUploadContinue    = 7;
 }
 
 message InitUploadReq {

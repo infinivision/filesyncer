@@ -70,8 +70,18 @@ func (stat *status) isComplete() bool {
 func (stat *status) close(remove bool) {
 	if stat.fd != nil {
 		stat.fd.Close()
+		log.Debugf("fd closed %s",
+			stat.file)
 		if remove {
-			os.Remove(stat.file)
+			err := os.Remove(stat.file)
+			if err != nil {
+				log.Errorf("remove %s failed, errors:%+v",
+					stat.file,
+					err)
+			} else {
+				log.Debugf("removed %s",
+					stat.file)
+			}
 		}
 	}
 }

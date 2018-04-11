@@ -2,11 +2,36 @@ package monitor
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/pb"
 )
+
+func (m *Monitor) inProcessing(file string) bool {
+	inProcessing := m.checkExists(m.prepares, file)
+	if !inProcessing {
+		inProcessing = m.checkExists(m.uploadings, file)
+	}
+
+	return inProcessing
+}
+
+func (m *Monitor) checkExists(target *sync.Map, file string) bool {
+	exists := false
+	target.Range(func(key, value interface{}) bool {
+		stat := value.(*status)
+		if stat.file == file {
+			exists = true
+			return false
+		}
+
+		return true
+	})
+
+	return exists
+}
 
 func (m *Monitor) addFile(file string) {
 	log.Debugf("upload: new file add: %s", file)
@@ -15,6 +40,11 @@ func (m *Monitor) addFile(file string) {
 }
 
 func (m *Monitor) handlePrepare(file string) {
+	if m.inProcessing(file) {
+		log.Debugf("upload-pre: file %s already in processing", file)
+		return
+	}
+
 	info, err := os.Stat(file)
 	if err != nil {
 		log.Errorf("upload-pre: stat %s failed, errors:%+v",
@@ -126,6 +156,9 @@ func (m *Monitor) sendInit(msg *pb.InitUploadReq) {
 	stat := m.getPrepareStat(msg.Seq)
 	err := m.doSend(stat.to, msg)
 	if err != nil {
+		stat.close(false)
+		m.prepares.Delete(msg.Seq)
+
 		// retry and rechoose a server immediate
 		m.addFile(stat.file)
 		return
@@ -174,6 +207,8 @@ func (m *Monitor) retryPrepareConnectionClosed(addr string) {
 	}
 
 	for _, stat := range retries {
+		stat.close(false)
+
 		// retry and rechoose a server immediate
 		m.addFile(stat.file)
 	}

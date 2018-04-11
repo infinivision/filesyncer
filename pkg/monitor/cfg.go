@@ -18,6 +18,7 @@ type Cfg struct {
 	RefreshInterval  time.Duration
 	LimitTraffic     int
 	TimeoutRead      time.Duration
+	TimeoutWrite     time.Duration
 	Chunk            int64
 	TimeoutConnect   time.Duration
 	DiableRetry      bool
