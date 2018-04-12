@@ -7,6 +7,7 @@ import (
 
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/pb"
+	"golang.org/x/net/context"
 )
 
 func (m *Monitor) inProcessing(file string) bool {
@@ -145,6 +146,7 @@ func (m *Monitor) handleNextChunk(stat *status) {
 		return
 	}
 
+	m.limiter.Wait(context.Background())
 	m.sendUploading(stat.id, &pb.UploadReq{
 		ID:    stat.id,
 		Index: idx,

@@ -16,7 +16,7 @@ type Cfg struct {
 	MonitorInterval  time.Duration
 	BatchFetch       int
 	RefreshInterval  time.Duration
-	LimitTraffic     int
+	LimitTraffic     int64
 	TimeoutRead      time.Duration
 	TimeoutWrite     time.Duration
 	Chunk            int64

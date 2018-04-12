@@ -9,6 +9,7 @@ import (
 	"github.com/fagongzi/log"
 	"github.com/fagongzi/util/atomic"
 	"github.com/fagongzi/util/task"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -20,6 +21,7 @@ type Monitor struct {
 	sync.RWMutex
 
 	cfg                  *Cfg
+	rate                 *rate.Limiter
 	runner               *task.Runner
 	tw                   *goetty.TimeoutWheel
 	pool                 *goetty.AddressBasedPool
@@ -29,6 +31,8 @@ type Monitor struct {
 	readyC               chan string
 	completeC            chan *sync.WaitGroup
 	completeWG           *sync.WaitGroup
+
+	limiter *rate.Limiter
 }
 
 // NewMonitor create a Monitor
@@ -64,6 +68,9 @@ func (m *Monitor) init() {
 	m.uploadings = &sync.Map{}
 	m.readyC = make(chan string, bufC)
 	m.completeC = make(chan *sync.WaitGroup)
+
+	n := int(m.cfg.LimitTraffic / m.cfg.Chunk)
+	m.limiter = rate.NewLimiter(rate.Every(time.Second/time.Duration(n)), int(n))
 }
 
 func (m *Monitor) startRefreshTask() {

@@ -32,7 +32,7 @@ var (
 	backupServers    = flag.String("backup", "", "Backup servers if discovery server is not available, multi server split by ','.")
 	target           = flag.String("target", "", "Dir: monitor target dir.")
 	chunk            = flag.Int64("chunk", 1024, "Chunk size: bytes")
-	limitTraffic     = flag.Int("limit-traffic", 512, "Limit(KB): upload traffic limit.")
+	limitTraffic     = flag.Int64("limit-traffic", 512, "Limit(KB): upload traffic limit.")
 	refreshInterval  = flag.Int("refresh-interval", 86400, "Interval(sec): Refresh file servers.")
 	monitorInterval  = flag.Int("monitor-interval", 10, "Interval(sec): monitor the target dir.")
 	batchFetch       = flag.Int("batch-fetch", 10, "Batch: fetch number Of files in target each.")
