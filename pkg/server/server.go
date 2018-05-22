@@ -11,6 +11,11 @@ import (
 	"github.com/infinivision/filesyncer/pkg/codec"
 )
 
+type ImgMsg struct {
+	Mac string
+	Img io.Reader
+}
+
 // FileServer file server
 type FileServer struct {
 	sync.RWMutex
@@ -18,13 +23,15 @@ type FileServer struct {
 	cfg       *Cfg
 	sessions  map[int64]*session
 	tcpServer *goetty.Server
+
+	imgCh chan<- ImgMsg
 }
 
 // NewFileServer create a file server
 // The file server will received files via tcp protocol,
 // and support resume data from break point.
-func NewFileServer(cfg *Cfg) *FileServer {
-	initG(cfg)
+func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
+	initG(cfg, imgCh)
 
 	return &FileServer{
 		cfg:      cfg,
@@ -35,6 +42,7 @@ func NewFileServer(cfg *Cfg) *FileServer {
 			goetty.WithServerMiddleware(goetty.NewSyncProtocolServerMiddleware(codec.FileDecoder, codec.FileEncoder, func(conn goetty.IOSession, msg interface{}) error {
 				return conn.WriteAndFlush(msg)
 			}))),
+		imgCh: imgCh,
 	}
 }
 

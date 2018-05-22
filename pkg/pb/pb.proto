@@ -20,13 +20,18 @@ enum Code {
 
 enum Cmd {
     CmdHB                = 0;
-    CmdUploadInit        = 1;
-    CmdUploadInitRsp     = 2;
-    CmdUpload            = 3;
-    CmdUploadRsp         = 4;
-    CmdUploadComplete    = 5;
-    CmdUploadCompleteRsp = 6;
-    CmdUploadContinue    = 7;
+    CmdHandshake         = 1;
+    CmdUploadInit        = 2;
+    CmdUploadInitRsp     = 3;
+    CmdUpload            = 4;
+    CmdUploadRsp         = 5;
+    CmdUploadComplete    = 6;
+    CmdUploadCompleteRsp = 7;
+    CmdUploadContinue    = 8;
+}
+
+message Handshake {
+    optional string mac   = 1 [(gogoproto.nullable) = false];
 }
 
 message InitUploadReq {

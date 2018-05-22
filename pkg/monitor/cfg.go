@@ -9,7 +9,7 @@ import (
 
 // Cfg the configuration for monitor
 type Cfg struct {
-	ID               int
+	ID               string
 	Discovery        string
 	Target           string
 	Backups          []string

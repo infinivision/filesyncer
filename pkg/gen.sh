@@ -10,13 +10,13 @@ PRJ="filesyncer"
 # directories containing protos to be built
 DIRS="./pb"
 
-GOGOPROTO_ROOT="${GOPATH}/src/github.com/gogo/protobuf"
+GOGOPROTO_ROOT="$(go env GOPATH)/src/github.com/gogo/protobuf"
 GOGOPROTO_PATH="${GOGOPROTO_ROOT}:${GOGOPROTO_ROOT}/protobuf"
-INFINIVISION_PB_PATH="${GOPATH}/src/github.com/infinivision/${PRJ}/pkg"
+INFINIVISION_PB_PATH="$(go env GOPATH)/src/github.com/infinivision/${PRJ}/pkg"
 
 for dir in ${DIRS}; do
 	pushd ${dir}
-		protoc --gofast_out=plugins=grpc,import_prefix=github.com/infinivision/${PRJ}/pkg/:. -I=.:"${GOGOPROTO_PATH}":"${INFINIVISION_PB_PATH}":"${GOPATH}/src" *.proto
+		protoc --gofast_out=plugins=grpc,import_prefix=github.com/infinivision/${PRJ}/pkg/:. -I=.:"${GOGOPROTO_PATH}":"${INFINIVISION_PB_PATH}":"$(go env GOPATH)/src" *.proto
 		sed -i.bak -E 's/github\.com\/infinivision\/'"${PRJ}"'\/pkg\/(gogoproto|github\.com|golang\.org|google\.golang\.org)/\1/g' *.pb.go
 		sed -i.bak -E 's/github\.com\/infinivision\/'"${PRJ}"'\/pkg\/(errors|fmt|io)/\1/g' *.pb.go
 		sed -i.bak -E 's/import _ \"gogoproto\"//g' *.pb.go

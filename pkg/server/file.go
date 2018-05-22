@@ -16,12 +16,14 @@ type fileManager struct {
 	cfg   RetryCfg
 	allc  uint64
 	files map[uint64]*file
+	imgCh chan<- ImgMsg
 }
 
-func newFileManager(cfg RetryCfg) *fileManager {
+func newFileManager(cfg RetryCfg, imgCh chan<- ImgMsg) *fileManager {
 	return &fileManager{
 		files: make(map[uint64]*file, 1024),
 		cfg:   cfg,
+		imgCh: imgCh,
 	}
 }
 
@@ -66,7 +68,7 @@ func (mgr *fileManager) continueUpload(id uint64) (bool, int32) {
 	return false, 0
 }
 
-func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
+func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.Code {
 	fid := req.ID
 
 	mgr.RLock()
@@ -83,6 +85,10 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 
 			code := f.complete(req)
 			if code != pb.CodeOSSError {
+				if mgr.imgCh != nil {
+					f.readed = 0
+					mgr.imgCh <- ImgMsg{Mac: mac, Img: f}
+				}
 				mgr.remove(fid)
 				mgr.RUnlock()
 				return code
@@ -148,7 +154,7 @@ func (f *file) append(req *pb.UploadReq) pb.Code {
 	}
 
 	f.chunks[req.Index] = req.Data
-	log.Infof("file-%d: append %d bytes with chunk idx %d",
+	log.Debugf("file-%d: append %d bytes with chunk idx %d",
 		req.ID,
 		len(req.Data),
 		req.Index)
@@ -166,9 +172,17 @@ func (f *file) complete(req *pb.UploadCompleteReq) pb.Code {
 		return pb.CodeOSSError
 	}
 
-	log.Infof("file-%d: complete succ with object %s",
+	log.Infof("file-%d: complete succ with object %s, size %d",
 		req.ID,
-		objID)
+		objID,
+		f.meta.ContentLength)
+
+	if f.meta.ContentLength > 50000 {
+		// A 112*112*3 raw image is 38KB. The size will be reduced to about 1/10 with JPEG compression.
+		log.Warnf("file-%d: file size %d is much bigger than expected", f.meta.ContentLength)
+	} else {
+
+	}
 	return pb.CodeSucc
 }
 

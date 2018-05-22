@@ -24,6 +24,7 @@ import (
 
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/server"
+	"github.com/infinivision/filesyncer/pkg/version"
 )
 
 var (
@@ -40,10 +41,17 @@ var (
 	retryMaxRetryTimes  = flag.Int("retry-max-times", 3, "Max: retry times of put file to the oss server")
 	retryIntervalSec    = flag.Int("retry-interval", 10, "Interval(sec): interval seconds between two retries")
 	retryIntervalFactor = flag.Int("retry-interval-factor", 2, "Factor: retry interval factor")
+
+	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
 func main() {
 	flag.Parse()
+
+	if *showVer {
+		version.ShowVersion()
+		os.Exit(0)
+	}
 
 	log.InitLog()
 
@@ -55,7 +63,7 @@ func main() {
 		}()
 	}
 
-	s := server.NewFileServer(parseCfg())
+	s := server.NewFileServer(parseCfg(), nil)
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
 		syscall.SIGINT,
