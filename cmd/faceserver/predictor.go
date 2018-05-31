@@ -96,12 +96,12 @@ func (this *Predictor) do(img io.Reader) (pr *PredResp, err error) {
 	respBody, err = ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		err = errors.Wrapf(err, "respBody: %+v", respBody)
+		err = errors.Wrapf(err, "")
 		return
 	}
 	pr = &PredResp{}
 	if err = json.Unmarshal(respBody, pr); err != nil {
-		err = errors.Wrapf(err, "respBody: %+v", respBody)
+		err = errors.Wrapf(err, "respBody: %+v", string(respBody))
 		return
 	}
 	return
