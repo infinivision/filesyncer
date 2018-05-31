@@ -93,7 +93,7 @@ func parseCfg() *monitor.Cfg {
 	if mac = getNicMAC(); len(mac) == 0 {
 		log.Fatalf("failed to determine MAC")
 	} else {
-		log.Infof("MAC: ", mac)
+		log.Infof("MAC: %s", mac)
 	}
 
 	cfg := &monitor.Cfg{}

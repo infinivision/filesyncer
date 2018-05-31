@@ -83,7 +83,9 @@ func main() {
 	// Expose the registered metrics via HTTP.
 	log.Infof("exposed metric at %s", *metricAddr)
 	http.Handle("/metrics", promhttp.Handler())
-	go log.Fatal(http.ListenAndServe(*metricAddr, nil))
+	go func() {
+		log.Fatal(http.ListenAndServe(*metricAddr, nil))
+	}()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,

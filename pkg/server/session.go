@@ -41,7 +41,9 @@ func (s *session) onReq(msg interface{}) {
 	if req, ok := msg.(*pb.Handshake); ok {
 		s.handshake(req)
 	} else if req, ok := msg.(*pb.InitUploadReq); ok {
-		s.filesizeHistogram.Observe(float64(req.ContentLength))
+		if s.filesizeHistogram != nil {
+			s.filesizeHistogram.Observe(float64(req.ContentLength))
+		}
 		s.initUpload(req)
 	} else if req, ok := msg.(*pb.UploadReq); ok {
 		s.upload(req)
@@ -50,7 +52,9 @@ func (s *session) onReq(msg interface{}) {
 	} else if req, ok := msg.(*pb.UploadCompleteReq); ok {
 		s.uploadComplete(req)
 	} else if msg == codec.HB {
-		s.heartbeatCount.Inc()
+		if s.heartbeatCount != nil {
+			s.heartbeatCount.Inc()
+		}
 		s.doRsp(msg)
 	}
 }
