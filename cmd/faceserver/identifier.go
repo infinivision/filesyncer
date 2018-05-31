@@ -197,7 +197,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 
 		var mac []byte
 		if mac, err = hex.DecodeString(vecMsgs[i].Mac); err != nil {
-			err = errors.Wrap(err, "")
+			err = errors.Wrapf(err, "mac: %+v", vecMsgs[i].Mac)
 			return
 		}
 		if len(mac) > 8 {

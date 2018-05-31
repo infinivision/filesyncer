@@ -73,11 +73,11 @@ func (this *Recorder) Stop() {
 func (this *Recorder) do(v *Visit) (err error) {
 	var data []byte
 	if data, err = v.Marshal(); err != nil {
-		err = errors.Wrapf(err, "")
+		err = errors.Wrapf(err, "v: %+v", v)
 		return
 	}
 	if err = this.tpm.Publish(this.topic, data); err != nil {
-		err = errors.Wrapf(err, "")
+		err = errors.Wrap(err, "")
 		return
 	}
 	return
