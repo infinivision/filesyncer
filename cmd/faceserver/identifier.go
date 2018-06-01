@@ -1,12 +1,9 @@
 package main
 
 import (
-	"encoding/binary"
-	"encoding/hex"
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 
@@ -18,6 +15,8 @@ const (
 	metricType  = 0
 	indexKey    = "IVF4096,PQ32"
 	queryParams = "nprobe=256,ht=256"
+
+	macLen = 12
 )
 
 type Identifier struct {
@@ -29,6 +28,7 @@ type Identifier struct {
 	flatThr        int
 	vdb            *vectodb.VectoDB
 	nextXid        int64
+	ac             *AdminCache
 	searchDuration prometheus.Histogram
 	addDuration    prometheus.Histogram
 	updateDuration prometheus.Histogram
@@ -36,7 +36,7 @@ type Identifier struct {
 	cancel         context.CancelFunc
 }
 
-func NewIdentifier(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, batchSize int, distThr float32, flatThr int, workDir string, dim int) (iden *Identifier) {
+func NewIdentifier(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, batchSize int, distThr float32, flatThr int, workDir string, dim int, ac *AdminCache) (iden *Identifier) {
 	iden = &Identifier{
 		vecCh:     vecCh,
 		visitCh:   visitCh,
@@ -44,6 +44,7 @@ func NewIdentifier(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, bat
 		batchSize: batchSize,
 		distThr:   distThr,
 		flatThr:   flatThr,
+		ac:        ac,
 		searchDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Name:    "idendify_search_duration_seconds",
 			Help:    "identify RPC latency distributions.",
@@ -80,6 +81,7 @@ func (this *Identifier) Start() {
 		return
 	}
 	this.ctx, this.cancel = context.WithCancel(context.Background())
+	go this.flushCacheLoop()
 	go this.builderLoop()
 	for i := 0; i < this.parallel; i++ {
 		go func() {
@@ -92,7 +94,8 @@ func (this *Identifier) Start() {
 				case <-doneCh:
 					return
 				case vecMsg := <-this.vecCh:
-				     	log.Debugf("received vecMsg: %+v", vecMsg)
+					log.Debugf("received vecMsg: %+v", vecMsg)
+					log.Debugf("received vecMsg: %+v", vecMsg)
 					vecMsgs = append(vecMsgs, vecMsg)
 					if len(vecMsgs) >= this.batchSize {
 						if err = this.doBatch(vecMsgs); err != nil {
@@ -138,6 +141,22 @@ func (this *Identifier) builderLoop() {
 	}
 }
 
+func (this *Identifier) flushCacheLoop() {
+	doneCh := this.ctx.Done()
+	ticker := time.NewTicker(60 * time.Second)
+	var err error
+	for {
+		select {
+		case <-doneCh:
+			return
+		case <-ticker.C:
+			if err = this.ac.Flush(); err != nil {
+				log.Errorf("%+v", err)
+			}
+		}
+	}
+}
+
 func (this *Identifier) allocateXid() (xid int64) {
 	xid = atomic.AddInt64(&this.nextXid, 1) - 1
 	return
@@ -155,7 +174,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 		xq = append(xq, vecMsg.Vec...)
 	}
 	t0 := time.Now()
-        var ntotal int
+	var ntotal int
 	if ntotal, err = this.vdb.Search(nq, xq, distances, xids); err != nil {
 		return
 	}
@@ -168,22 +187,22 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	var extXb []float32
 	var extXids []int64
 	if ntotal == 0 {
-	   newXb = xq
-	   for i :=0; i < nq; i++ {
-	     newXids = append(newXids, this.allocateXid())
-	   }
-	} else {
-	for i := 0; i < nq; i++ {
-		if xids[i] == int64(-1) {
-			newXid = this.allocateXid()
-			xids[i] = newXid
-			newXb = append(newXb, vecMsgs[i].Vec...)
-			newXids = append(newXids, newXid)
-		} else {
-			extXb = append(extXb, vecMsgs[i].Vec...)
-			extXids = append(extXids, xids[i])
+		newXb = xq
+		for i := 0; i < nq; i++ {
+			newXids = append(newXids, this.allocateXid())
 		}
-	}
+	} else {
+		for i := 0; i < nq; i++ {
+			if xids[i] == int64(-1) {
+				newXid = this.allocateXid()
+				xids[i] = newXid
+				newXb = append(newXb, vecMsgs[i].Vec...)
+				newXids = append(newXids, newXid)
+			} else {
+				extXb = append(extXb, vecMsgs[i].Vec...)
+				extXids = append(extXids, xids[i])
+			}
+		}
 	}
 	log.Debugf("vectodb search result: hit %d, miss %d, ntotal: %d", len(extXids), len(newXids), ntotal)
 	if newXb != nil {
@@ -204,24 +223,26 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	}
 
 	for i := 0; i < nq; i++ {
-
-		var mac []byte
-		if mac, err = hex.DecodeString(vecMsgs[i].Mac); err != nil {
-			err = errors.Wrapf(err, "mac: %+v", vecMsgs[i].Mac)
-			return
-		}
-		if len(mac) > 8 {
-			mac = mac[:8]
-		} else {
-			for i := 0; i < 8-len(vecMsgs[i].Mac); i++ {
-				mac = append(mac, 0)
+		location := int64(-1)
+		var found bool
+		macsLen := len(vecMsgs[i].Mac)
+		for j := 0; j < macsLen; j += macLen {
+			if j+macLen > macsLen {
+				continue
+			}
+			mac := vecMsgs[i].Mac[j : j+macLen]
+			if location, found = this.ac.Get(mac); found {
+				break
 			}
 		}
-		location := binary.BigEndian.Uint64(mac)
+		if !found {
+			log.Warnf("cannont determine shop id for MAC %s", vecMsgs[i].Mac)
+			continue
+		}
 		visit := &Visit{
 			Uid:       uint64(xids[i]),
 			VisitTime: uint64(time.Now().Unix()),
-			Location:  location,
+			Location:  uint64(location),
 			Age:       99, //TODO: determine Age and IsMale
 			IsMale:    false,
 		}

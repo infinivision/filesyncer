@@ -54,6 +54,11 @@ var (
 	identifyWorkDir   = flag.String("identify-work-dir", "/data", "Work directory of vectodb.")
 	identifyDim       = flag.Int("identify-dim", 512, "Dimension of vectors inside vectodb.")
 
+	adminAddr     = flag.String("admin-addr", "127.0.0.1:8080", "admin database host and port.")
+	adminUsername = flag.String("admin-username", "username", "admin database username.")
+	adminPassword = flag.String("admin-password", "password", "admin database password.")
+	adminDatabase = flag.String("admin-database", "iot", "admin database.")
+
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
@@ -99,7 +104,12 @@ func main() {
 	s := server.NewFileServer(parseCfg(), imgCh)
 	pred := NewPredictor(*predictServURL, imgCh, vecCh, 3)
 
-	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim)
+	ac, err := NewAdminCache(*adminAddr, *adminUsername, *adminPassword, *adminDatabase)
+	if err != nil {
+		log.Fatalf("+v", err)
+	}
+
+	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim, ac)
 	recd, err := NewRecorder(*nsqlookupdURLs, *topic, visitCh)
 	if err != nil {
 		log.Fatalf("+v", err)
