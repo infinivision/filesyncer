@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"time"
 
 	"github.com/fagongzi/log"
@@ -64,7 +67,7 @@ func (this *Predictor) Start() {
 						log.Errorf("%+v", err)
 						continue
 					}
-					log.Debug(pr)
+					log.Debugf("sent vecMsg: %+v", pr)
 					this.vecCh <- VecMsg{Mac: img.Mac, Vec: pr.Vec}
 				}
 			}
@@ -87,7 +90,26 @@ func (this *Predictor) do(img io.Reader) (pr *PredResp, err error) {
 	var resp *http.Response
 	var respBody []byte
 	t0 := time.Now()
-	if resp, err = this.hc.Post(this.servURL, "image/jpeg", img); err != nil {
+	reqBody := &bytes.Buffer{}
+	writer := multipart.NewWriter(reqBody)
+	//part, err := writer.CreateFormFile("data", "image.jpg") //uses "Content-Type: application/octet-stream"
+	partHeader := textproto.MIMEHeader{}
+	partHeader.Add("Content-Disposition", `form-data; name="data"; filename="image.jpg"`)
+	partHeader.Add("Content-Type", "image/jpeg")
+	part, err := writer.CreatePart(partHeader)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	if _, err = io.Copy(part, img); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	writer.Close()
+	req, err := http.NewRequest("POST", this.servURL, reqBody)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	if resp, err = this.hc.Do(req); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}

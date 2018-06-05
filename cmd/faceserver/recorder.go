@@ -19,11 +19,6 @@ type Recorder struct {
 }
 
 func NewRecorder(nsqlookupdURLs string, topic string, visitCh <-chan *Visit) (rcd *Recorder, err error) {
-	rcd = &Recorder{
-		nsqlookupdURLs: nsqlookupdURLs,
-		topic:          topic,
-		visitCh:        visitCh,
-	}
 	var tpm *nsq.TopicProducerMgr
 	nc := nsq.NewConfig()
 	tpm, err = nsq.NewTopicProducerMgr([]string{topic}, nc)
@@ -32,6 +27,12 @@ func NewRecorder(nsqlookupdURLs string, topic string, visitCh <-chan *Visit) (rc
 		return
 	}
 	tpm.AddLookupdNodes(strings.Split(nsqlookupdURLs, ","))
+	rcd = &Recorder{
+		nsqlookupdURLs: nsqlookupdURLs,
+		topic:          topic,
+		visitCh:        visitCh,
+		tpm:            tpm,
+	}
 	return
 }
 

@@ -92,6 +92,7 @@ func (this *Identifier) Start() {
 				case <-doneCh:
 					return
 				case vecMsg := <-this.vecCh:
+				     	log.Debugf("received vecMsg: %+v", vecMsg)
 					vecMsgs = append(vecMsgs, vecMsg)
 					if len(vecMsgs) >= this.batchSize {
 						if err = this.doBatch(vecMsgs); err != nil {
@@ -146,15 +147,16 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	//TODO: query distributed vectodb
 	//TODO: convert vecMsg.Mac to location via CMDB?
 	nq := len(vecMsgs)
+	log.Debugf("(*Identifier).doBatch %d", nq)
 	xq := make([]float32, 0)
 	distances := make([]float32, nq)
 	xids := make([]int64, nq)
-	var ntotal int
 	for _, vecMsg := range vecMsgs {
 		xq = append(xq, vecMsg.Vec...)
 	}
 	t0 := time.Now()
-	if ntotal, err = this.vdb.Search(nq, xq, distances, xids); err != nil || ntotal == 0 {
+        var ntotal int
+	if ntotal, err = this.vdb.Search(nq, xq, distances, xids); err != nil {
 		return
 	}
 	duration := time.Since(t0).Seconds()
@@ -165,6 +167,12 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	var newXids []int64
 	var extXb []float32
 	var extXids []int64
+	if ntotal == 0 {
+	   newXb = xq
+	   for i :=0; i < nq; i++ {
+	     newXids = append(newXids, this.allocateXid())
+	   }
+	} else {
 	for i := 0; i < nq; i++ {
 		if xids[i] == int64(-1) {
 			newXid = this.allocateXid()
@@ -176,6 +184,8 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 			extXids = append(extXids, xids[i])
 		}
 	}
+	}
+	log.Debugf("vectodb search result: hit %d, miss %d, ntotal: %d", len(extXids), len(newXids), ntotal)
 	if newXb != nil {
 		t0 := time.Now()
 		if err = this.vdb.AddWithIds(len(newXids), newXb, newXids); err != nil {
@@ -215,6 +225,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 			Age:       99, //TODO: determine Age and IsMale
 			IsMale:    false,
 		}
+		log.Debugf("visit: %+v", visit)
 		this.visitCh <- visit
 		return
 	}
