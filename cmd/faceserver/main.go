@@ -58,6 +58,7 @@ var (
 	adminUsername = flag.String("admin-username", "username", "admin database username.")
 	adminPassword = flag.String("admin-password", "password", "admin database password.")
 	adminDatabase = flag.String("admin-database", "iot", "admin database.")
+	adminTable = flag.String("admin-table", "iot_terminal", "admin database table.")
 
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
@@ -104,7 +105,7 @@ func main() {
 	s := server.NewFileServer(parseCfg(), imgCh)
 	pred := NewPredictor(*predictServURL, imgCh, vecCh, 3)
 
-	ac, err := NewAdminCache(*adminAddr, *adminUsername, *adminPassword, *adminDatabase)
+	ac, err := NewAdminCache(*adminAddr, *adminUsername, *adminPassword, *adminDatabase, *adminTable)
 	if err != nil {
 		log.Fatalf("+v", err)
 	}
