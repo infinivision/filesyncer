@@ -105,7 +105,7 @@ func (this *Identifier) Serve(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case vecMsg := <-this.vecCh:
-					log.Debugf("received vecMsg: %+v", vecMsg)
+					log.Debugf("received vecMsg for image (length %d)", len(vecMsg.Img))
 					vecMsgs = append(vecMsgs, vecMsg)
 					if len(vecMsgs) >= this.batchSize {
 						if err = this.doBatch(vecMsgs); err != nil {

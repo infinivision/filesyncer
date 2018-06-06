@@ -199,7 +199,7 @@ func (f *file) complete(req *pb.UploadCompleteReq) pb.Code {
 
 	if f.meta.ContentLength > 50000 {
 		// A 112*112*3 raw image is 38KB. The size will be reduced to about 1/10 with JPEG compression.
-		log.Warnf("file-%d: file size %d is much bigger than expected", f.meta.ContentLength)
+		log.Warnf("file-%d: file size %d is much bigger than expected", req.ID, f.meta.ContentLength)
 	}
 	return pb.CodeSucc
 }
