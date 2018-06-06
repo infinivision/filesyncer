@@ -105,7 +105,7 @@ func (this *Identifier) Serve(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case vecMsg := <-this.vecCh:
-					log.Debugf("received vecMsg for image (length %d)", len(vecMsg.Img))
+					log.Debugf("received vecMsg for image, length %d, vec %v", len(vecMsg.Img), vecMsg.Vec)
 					vecMsgs = append(vecMsgs, vecMsg)
 					if len(vecMsgs) >= this.batchSize {
 						if err = this.doBatch(vecMsgs); err != nil {
@@ -187,7 +187,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 			}
 		}
 	}
-	log.Debugf("vectodb search result: hit %d, miss %d, ntotal: %d", len(extXids), len(newXids), ntotal)
+	log.Debugf("vectodb search result: hit %d, miss %d, ntotal %d, distances %v", len(extXids), len(newXids), ntotal, distances)
 	if newXb != nil {
 		t0 := time.Now()
 		if err = this.vdb.AddWithIds(len(newXids), newXb, newXids); err != nil {
