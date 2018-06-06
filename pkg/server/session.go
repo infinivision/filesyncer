@@ -64,14 +64,14 @@ func (s *session) onReq(msg interface{}) {
 }
 
 func (s *session) handshake(req *pb.Handshake) {
+	s.mac = req.Mac
 	if s.heartbeatCount == nil {
-		s.mac = req.Mac
 		s.heartbeatCount = prometheus.NewCounter(prometheus.CounterOpts{
-			Name: fmt.Sprintf("terminal_heartbeat_%s", s.mac),
+			Name: fmt.Sprintf("terminal_heartbeat_%s", req.Mac),
 			Help: "terminal hearbeat count",
 		})
 		s.filesizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    fmt.Sprintf("terminal_filesize_%s", s.mac),
+			Name:    fmt.Sprintf("terminal_filesize_%s", req.Mac),
 			Help:    "terminal filesize distributions.",
 			Buckets: prometheus.LinearBuckets(0, 10240, 100), //100 buckets, each is 10K.
 		})

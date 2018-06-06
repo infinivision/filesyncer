@@ -10,6 +10,7 @@ type Cfg struct {
 	SessionTimeout time.Duration
 	Oss            OssCfg
 	Retry          RetryCfg
+	Admin          AdminCfg
 }
 
 // OssCfg oss cfg
@@ -26,4 +27,13 @@ type RetryCfg struct {
 	MaxTimes      int
 	RetryInterval time.Duration
 	RetryFactor   int
+}
+
+// AdminCache cfg
+type AdminCfg struct {
+	Addr     string
+	Username string
+	Password string
+	Database string
+	Table    string
 }

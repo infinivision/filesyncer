@@ -1,18 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"io/ioutil"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"time"
 
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/server"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 )
@@ -24,8 +17,6 @@ type Predictor struct {
 	parallel    int
 	hc          *http.Client
 	rpcDuration prometheus.Histogram
-	ctx         context.Context
-	cancel      context.CancelFunc
 }
 
 type PredResp struct {
@@ -42,25 +33,21 @@ func NewPredictor(servURL string, imgCh <-chan server.ImgMsg, vecCh chan<- VecMs
 		rpcDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Name:    "predication_rpc_duration_seconds",
 			Help:    "predication RPC latency distributions.",
-			Buckets: prometheus.LinearBuckets(0, 0.05, 20), //20 buckets, each is 50 ms.
+			Buckets: prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		}),
 	}
 	prometheus.MustRegister(pred.rpcDuration)
 	return
 }
 
-func (this *Predictor) Start() {
-	if this.ctx != nil {
-		return
-	}
-	this.ctx, this.cancel = context.WithCancel(context.Background())
+func (this *Predictor) Serve(ctx context.Context) {
 	for i := 0; i < this.parallel; i++ {
 		go func() {
 			var pr *PredResp
 			var err error
 			for {
 				select {
-				case <-this.ctx.Done():
+				case <-ctx.Done():
 					return
 				case img := <-this.imgCh:
 					if pr, err = this.do(img.Img); err != nil {
@@ -68,63 +55,20 @@ func (this *Predictor) Start() {
 						continue
 					}
 					log.Debugf("sent vecMsg: %+v", pr)
-					this.vecCh <- VecMsg{Mac: img.Mac, Vec: pr.Vec}
+					this.vecCh <- VecMsg{Shop: img.Shop, Img: img.Img, Vec: pr.Vec}
 				}
 			}
 
 		}()
-
 	}
 }
 
-func (this *Predictor) Stop() {
-	if this.ctx == nil {
-		return
-	}
-	this.cancel()
-	this.ctx = nil
-	this.cancel = nil
-}
-
-func (this *Predictor) do(img io.Reader) (pr *PredResp, err error) {
-	var resp *http.Response
-	var respBody []byte
-	t0 := time.Now()
-	reqBody := &bytes.Buffer{}
-	writer := multipart.NewWriter(reqBody)
-	//part, err := writer.CreateFormFile("data", "image.jpg") //uses "Content-Type: application/octet-stream"
-	partHeader := textproto.MIMEHeader{}
-	partHeader.Add("Content-Disposition", `form-data; name="data"; filename="image.jpg"`)
-	partHeader.Add("Content-Type", "image/jpeg")
-	part, err := writer.CreatePart(partHeader)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	if _, err = io.Copy(part, img); err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	writer.Close()
-	req, err := http.NewRequest("POST", this.servURL, reqBody)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	if resp, err = this.hc.Do(req); err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	duration := time.Since(t0).Seconds()
-	this.rpcDuration.Observe(duration)
-	respBody, err = ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		err = errors.Wrapf(err, "")
-		return
-	}
+func (this *Predictor) do(img []byte) (pr *PredResp, err error) {
 	pr = &PredResp{}
-	if err = json.Unmarshal(respBody, pr); err != nil {
-		err = errors.Wrapf(err, "respBody: %+v", string(respBody))
+	var duration time.Duration
+	if duration, err = PostFile(this.hc, this.servURL, img, pr); err != nil {
 		return
 	}
+	this.rpcDuration.Observe(duration.Seconds())
 	return
 }

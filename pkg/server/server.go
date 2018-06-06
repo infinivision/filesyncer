@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"math/rand"
 	"sync"
@@ -12,8 +13,8 @@ import (
 )
 
 type ImgMsg struct {
-	Mac string
-	Img io.Reader
+	Shop int64
+	Img  []byte
 }
 
 // FileServer file server
@@ -24,14 +25,23 @@ type FileServer struct {
 	sessions  map[int64]*session
 	tcpServer *goetty.Server
 
-	imgCh chan<- ImgMsg
+	ctx        context.Context
+	cancel     context.CancelFunc
+	adminCache *AdminCache
+	imgCh      chan<- ImgMsg
 }
 
 // NewFileServer create a file server
 // The file server will received files via tcp protocol,
 // and support resume data from break point.
 func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
-	initG(cfg, imgCh)
+	adminCache, err := NewAdminCache(cfg.Admin.Addr, cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Database, cfg.Admin.Table)
+	if err != nil {
+		log.Fatalf("%+v", err)
+	}
+
+	initG(cfg, adminCache, imgCh)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	return &FileServer{
 		cfg:      cfg,
@@ -42,18 +52,23 @@ func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
 			goetty.WithServerMiddleware(goetty.NewSyncProtocolServerMiddleware(codec.FileDecoder, codec.FileEncoder, func(conn goetty.IOSession, msg interface{}) error {
 				return conn.WriteAndFlush(msg)
 			}))),
-		imgCh: imgCh,
+		ctx:        ctx,
+		cancel:     cancel,
+		adminCache: adminCache,
+		imgCh:      imgCh,
 	}
 }
 
 // Start start the file server
 func (fs *FileServer) Start() error {
+	go fs.adminCache.UpdateLoop(fs.ctx)
 	return fs.tcpServer.Start(fs.doConnection)
 }
 
 // Stop stop the file server
-func (fs *FileServer) Stop() error {
-	return fs.Stop()
+func (fs *FileServer) Stop() {
+	fs.cancel()
+	fs.tcpServer.Stop()
 }
 
 var (

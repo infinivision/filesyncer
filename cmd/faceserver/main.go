@@ -14,6 +14,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
@@ -44,7 +45,8 @@ var (
 	retryIntervalSec    = flag.Int("retry-interval", 10, "Interval(sec): interval seconds between two retries")
 	retryIntervalFactor = flag.Int("retry-interval-factor", 2, "Factor: retry interval factor")
 
-	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/localhost/r50/predict", "Face predict server url")
+	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r50/predict", "Face predict server url")
+	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
 	nsqlookupdURLs = flag.String("nsqlookupd-urls", "http://127.0.0.1:4161", "List of URLs of nsqlookupd.")
 	topic          = flag.String("topic", "visits", "NSQ topic.")
 
@@ -58,14 +60,15 @@ var (
 	adminUsername = flag.String("admin-username", "username", "admin database username.")
 	adminPassword = flag.String("admin-password", "password", "admin database password.")
 	adminDatabase = flag.String("admin-database", "iot", "admin database.")
-	adminTable = flag.String("admin-table", "iot_terminal", "admin database table.")
+	adminTable    = flag.String("admin-table", "iot_terminal", "admin database table.")
 
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
 type VecMsg struct {
-	Mac string
-	Vec []float32
+	Shop int64
+	Img  []byte
+	Vec  []float32
 }
 
 func main() {
@@ -105,21 +108,17 @@ func main() {
 	s := server.NewFileServer(parseCfg(), imgCh)
 	pred := NewPredictor(*predictServURL, imgCh, vecCh, 3)
 
-	ac, err := NewAdminCache(*adminAddr, *adminUsername, *adminPassword, *adminDatabase, *adminTable)
-	if err != nil {
-		log.Fatalf("+v", err)
-	}
-
-	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim, ac)
+	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim, *ageServURL)
 	recd, err := NewRecorder(*nsqlookupdURLs, *topic, visitCh)
 	if err != nil {
 		log.Fatalf("+v", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go s.Start()
-	pred.Start()
-	iden.Start()
-	recd.Start()
+	go pred.Serve(ctx)
+	go iden.Serve(ctx)
+	go recd.Serve(ctx)
 
 	for {
 		sig := <-sc
@@ -129,9 +128,7 @@ func main() {
 		}
 		log.Infof("exit with signal=<%d>.", sig)
 		s.Stop()
-		pred.Stop()
-		iden.Stop()
-		recd.Stop()
+		cancel()
 		time.Sleep(5 * time.Second)
 		log.Infof(" bye :-).")
 		os.Exit(retVal)
@@ -153,5 +150,10 @@ func parseCfg() *server.Cfg {
 	cfg.Retry.RetryFactor = *retryIntervalFactor
 	cfg.Retry.RetryInterval = time.Second * time.Duration(*retryIntervalSec)
 
+	cfg.Admin.Addr = *adminAddr
+	cfg.Admin.Username = *adminUsername
+	cfg.Admin.Password = *adminPassword
+	cfg.Admin.Database = *adminDatabase
+	cfg.Admin.Table = *adminTable
 	return cfg
 }

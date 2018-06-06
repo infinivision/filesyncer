@@ -11,14 +11,14 @@ var (
 	bucketName  string
 )
 
-func initG(cfg *Cfg, imgCh chan<- ImgMsg) {
+func initG(cfg *Cfg, adminCache *AdminCache, imgCh chan<- ImgMsg) {
 	bucketName = cfg.Oss.BucketName
-	initFileManager(cfg.Retry, imgCh)
+	initFileManager(cfg.Retry, adminCache, imgCh)
 	initObjectStore(cfg.Oss)
 }
 
-func initFileManager(cfg RetryCfg, imgCh chan<- ImgMsg) {
-	fileMgr = newFileManager(cfg, imgCh)
+func initFileManager(cfg RetryCfg, adminCache *AdminCache, imgCh chan<- ImgMsg) {
+	fileMgr = newFileManager(cfg, adminCache, imgCh)
 }
 
 func initObjectStore(cfg OssCfg) {

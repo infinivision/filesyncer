@@ -2,12 +2,18 @@ package server
 
 import (
 	"io"
+	"io/ioutil"
 	"sync"
 	"time"
 
 	"github.com/fagongzi/log"
 	"github.com/fagongzi/util/uuid"
 	"github.com/infinivision/filesyncer/pkg/pb"
+	"github.com/pkg/errors"
+)
+
+const (
+	UnknownShop int64 = -1
 )
 
 type fileManager struct {
@@ -16,14 +22,17 @@ type fileManager struct {
 	cfg   RetryCfg
 	allc  uint64
 	files map[uint64]*file
-	imgCh chan<- ImgMsg
+
+	adminCache *AdminCache
+	imgCh      chan<- ImgMsg
 }
 
-func newFileManager(cfg RetryCfg, imgCh chan<- ImgMsg) *fileManager {
+func newFileManager(cfg RetryCfg, adminCache *AdminCache, imgCh chan<- ImgMsg) *fileManager {
 	return &fileManager{
-		files: make(map[uint64]*file, 1024),
-		cfg:   cfg,
-		imgCh: imgCh,
+		files:      make(map[uint64]*file, 1024),
+		cfg:        cfg,
+		adminCache: adminCache,
+		imgCh:      imgCh,
 	}
 }
 
@@ -86,8 +95,19 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 			code := f.complete(req)
 			if code != pb.CodeOSSError {
 				if mgr.imgCh != nil {
-					f.readed = 0
-					mgr.imgCh <- ImgMsg{Mac: mac, Img: f}
+					if shop, found := mgr.adminCache.Get(mac); found {
+						var img []byte
+						var err error
+						f.readed = 0
+						if img, err = ioutil.ReadAll(f); err != nil {
+							err = errors.Wrap(err, "")
+							log.Errorf("%+v", err)
+						} else {
+							mgr.imgCh <- ImgMsg{Shop: shop, Img: img}
+						}
+					} else {
+						log.Warnf("cannont determine shop id for MAC %s", mac)
+					}
 				}
 				mgr.remove(fid)
 				mgr.RUnlock()
@@ -180,8 +200,6 @@ func (f *file) complete(req *pb.UploadCompleteReq) pb.Code {
 	if f.meta.ContentLength > 50000 {
 		// A 112*112*3 raw image is 38KB. The size will be reduced to about 1/10 with JPEG compression.
 		log.Warnf("file-%d: file size %d is much bigger than expected", f.meta.ContentLength)
-	} else {
-
 	}
 	return pb.CodeSucc
 }

@@ -14,8 +14,6 @@ type Recorder struct {
 	topic          string
 	visitCh        <-chan *Visit
 	tpm            *nsq.TopicProducerMgr
-	ctx            context.Context
-	cancel         context.CancelFunc
 }
 
 func NewRecorder(nsqlookupdURLs string, topic string, visitCh <-chan *Visit) (rcd *Recorder, err error) {
@@ -36,17 +34,14 @@ func NewRecorder(nsqlookupdURLs string, topic string, visitCh <-chan *Visit) (rc
 	return
 }
 
-func (this *Recorder) Start() {
-	if this.ctx != nil {
-		return
-	}
-	this.ctx, this.cancel = context.WithCancel(context.Background())
+func (this *Recorder) Serve(ctx context.Context) {
 	go func() {
 		var pr *PredResp
 		var err error
 		for {
 			select {
-			case <-this.ctx.Done():
+			case <-ctx.Done():
+				this.tpm.Stop()
 				return
 			case visit := <-this.visitCh:
 				if err = this.do(visit); err != nil {
@@ -58,17 +53,6 @@ func (this *Recorder) Start() {
 		}
 
 	}()
-}
-
-func (this *Recorder) Stop() {
-	if this.ctx == nil {
-		return
-	}
-	this.cancel()
-	this.tpm.Stop()
-
-	this.ctx = nil
-	this.cancel = nil
 }
 
 func (this *Recorder) do(v *Visit) (err error) {
