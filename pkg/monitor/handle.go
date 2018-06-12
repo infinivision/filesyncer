@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -82,7 +83,7 @@ func (m *Monitor) handlePrepare(file string) {
 			ContentLength: fileSize,
 			ChunkCount:    int32(cnt),
 			ModTime:       info.ModTime().Unix(),
-			//TODO: determine camera
+			Camera:        filepath.Base(filepath.Dir(file)),
 		},
 		step: prepare,
 		to:   m.nextAvailable(),
