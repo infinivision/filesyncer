@@ -14,6 +14,7 @@ import (
 
 type ImgMsg struct {
 	Shop int64
+	Position uint32
 	Img  []byte
 }
 
@@ -35,7 +36,7 @@ type FileServer struct {
 // The file server will received files via tcp protocol,
 // and support resume data from break point.
 func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
-	adminCache, err := NewAdminCache(cfg.Admin.Addr, cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Database, cfg.Admin.Table)
+	adminCache, err := NewAdminCache(cfg.Admin.Addr, cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Database)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}

@@ -60,13 +60,13 @@ var (
 	adminUsername = flag.String("admin-username", "username", "admin database username.")
 	adminPassword = flag.String("admin-password", "password", "admin database password.")
 	adminDatabase = flag.String("admin-database", "iot", "admin database.")
-	adminTable    = flag.String("admin-table", "iot_terminal", "admin database table.")
 
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
 type VecMsg struct {
 	Shop int64
+	Position uint32
 	Img  []byte
 	Vec  []float32
 }
@@ -154,6 +154,5 @@ func parseCfg() *server.Cfg {
 	cfg.Admin.Username = *adminUsername
 	cfg.Admin.Password = *adminPassword
 	cfg.Admin.Database = *adminDatabase
-	cfg.Admin.Table = *adminTable
 	return cfg
 }

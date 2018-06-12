@@ -39,6 +39,7 @@ message InitUploadReq {
     optional string contentType   = 2 [(gogoproto.nullable) = false];
     optional int64  contentLength = 3 [(gogoproto.nullable) = false];
     optional int32  chunkCount    = 4 [(gogoproto.nullable) = false];
+    optional string camera        = 5 [(gogoproto.nullable) = false];
 }
 
 message InitUploadRsp {

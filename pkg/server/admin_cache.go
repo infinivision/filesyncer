@@ -19,9 +19,11 @@ const (
 type AdminCache struct {
 	rwlock  sync.RWMutex
 	termMap map[string]int64
+	cameraMap map[string]uint32
 
 	db  *sqlx.DB
-	sql string
+	termSql string
+	cameraSql string
 }
 
 type terminal struct {
@@ -29,7 +31,13 @@ type terminal struct {
 	Shop_id int64
 }
 
-func NewAdminCache(addr, username, password, database, table string) (ac *AdminCache, err error) {
+type camera struct {
+	Mac_id string
+	Name   string
+	Position uint32
+}
+
+func NewAdminCache(addr, username, password, database string) (ac *AdminCache, err error) {
 	var db *sqlx.DB
 	dataSource := fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, addr, database)
 	if db, err = sqlx.Connect("mysql", dataSource); err != nil {
@@ -38,7 +46,8 @@ func NewAdminCache(addr, username, password, database, table string) (ac *AdminC
 	}
 	ac = &AdminCache{
 		db:  db,
-		sql: fmt.Sprintf("SELECT mac, shop_id FROM %s", table),
+		termSql: fmt.Sprintf("SELECT mac, shop_id FROM iot_terminal"),
+		cameraSql: fmt.Sprintf("SELECT mac_id, name, position FROM iot_camera"),
 	}
 	err = ac.flush()
 	return
@@ -63,7 +72,12 @@ func (this *AdminCache) UpdateLoop(ctx context.Context) {
 // This shall be invoked regularly
 func (this *AdminCache) flush() (err error) {
 	terms := []terminal{}
-	if err = this.db.Select(&terms, this.sql); err != nil {
+	cames := []camera{}
+	if err = this.db.Select(&terms, this.termSql); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	if err = this.db.Select(&cames, this.cameraSql); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
@@ -71,25 +85,38 @@ func (this *AdminCache) flush() (err error) {
 	for _, term := range terms {
 		termMap2[term.Mac] = term.Shop_id
 	}
+	cameraMap2 := make(map[string]uint32)
+	for _, came := range cames {
+		cameraMap2[fmt.Sprintf("%s-%s", came.Mac_id, came.Name)] = came.Position
+	}
 	this.rwlock.Lock()
 	this.termMap = termMap2
+	this.cameraMap = cameraMap2
 	this.rwlock.Unlock()
-	log.Infof("flush %d terminals", len(terms))
+	log.Infof("got %d terminals, % cameras", len(terms), len(cames))
 	return
 }
 
-func (this *AdminCache) Get(macs string) (shopId int64, found bool) {
+func (this *AdminCache) GetShop(macs string) (shopId int64, mac string, found bool) {
 	this.rwlock.RLock()
 	macsLen := len(macs)
 	for j := 0; j < macsLen; j += MacLen {
 		if j+MacLen > macsLen {
 			continue
 		}
-		mac := macs[j : j+MacLen]
+		mac = macs[j : j+MacLen]
 		if shopId, found = this.termMap[mac]; found {
 			break
 		}
 	}
+	this.rwlock.RUnlock()
+	return
+}
+
+func (this *AdminCache) GetPosition(mac, name string) (position uint32, found bool) {
+	cameraKey := fmt.Sprintf("%s-%s", mac, name)
+	this.rwlock.RLock()
+	position, found = this.cameraMap[cameraKey]
 	this.rwlock.RUnlock()
 	return
 }

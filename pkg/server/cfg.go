@@ -35,5 +35,4 @@ type AdminCfg struct {
 	Username string
 	Password string
 	Database string
-	Table    string
 }

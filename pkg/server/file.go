@@ -95,18 +95,22 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 			code := f.complete(req)
 			if code != pb.CodeOSSError {
 				if mgr.imgCh != nil {
-					if shop, found := mgr.adminCache.Get(mac); found {
-						var img []byte
-						var err error
-						f.readed = 0
-						if img, err = ioutil.ReadAll(f); err != nil {
-							err = errors.Wrap(err, "")
-							log.Errorf("%+v", err)
+					if shop, mac2, found := mgr.adminCache.GetShop(mac); found {
+						if position, found := mgr.adminCache.GetPosition(mac2, f.meta.Camera); found {
+							var img []byte
+							var err error
+							f.readed = 0
+							if img, err = ioutil.ReadAll(f); err != nil {
+								err = errors.Wrap(err, "")
+								log.Errorf("%+v", err)
+							} else {
+								mgr.imgCh <- ImgMsg{Shop: shop, Position: position, Img: img}
+							}
 						} else {
-							mgr.imgCh <- ImgMsg{Shop: shop, Img: img}
+							log.Warnf("cannont determine position for (mac %s, camera %s)", mac2, f.meta.Camera)
 						}
 					} else {
-						log.Warnf("cannont determine shop id for MAC %s", mac)
+						log.Warnf("cannont determine shop id for mac %s", mac)
 					}
 				}
 				mgr.remove(fid)
