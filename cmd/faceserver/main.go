@@ -65,7 +65,7 @@ var (
 )
 
 type VecMsg struct {
-	Shop int64
+	Shop uint64
 	Position uint32
 	Img  []byte
 	Vec  []float32

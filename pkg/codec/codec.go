@@ -38,6 +38,9 @@ func (codec *codec) Decode(in *goetty.ByteBuf) (bool, interface{}, error) {
 	case pb.CmdHandshake:
 		value = &pb.Handshake{}
 		break
+	case pb.CmdHandshakeRsp:
+		value = &pb.HandshakeRsp{}
+		break
 	case pb.CmdUploadInit:
 		value = &pb.InitUploadReq{}
 		break
@@ -88,6 +91,10 @@ func (codec *codec) Encode(data interface{}, out *goetty.ByteBuf) error {
 		value = msg
 		size = msg.Size()
 		cmd = byte(pb.CmdHandshake)
+	} else if msg, ok := data.(*pb.HandshakeRsp); ok {
+		value = msg
+		size = msg.Size()
+		cmd = byte(pb.CmdHandshakeRsp)
 	} else if msg, ok := data.(*pb.InitUploadReq); ok {
 		value = msg
 		size = msg.Size()

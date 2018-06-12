@@ -64,7 +64,9 @@ func (m *Monitor) startReadLoop(addr string, conn goetty.IOSession) {
 			msg,
 			msg)
 
-		if value, ok := msg.(*pb.InitUploadRsp); ok {
+		if value, ok := msg.(*pb.HandshakeRsp); ok {
+			m.handleHandshakeRsp(value)
+		} else if value, ok := msg.(*pb.InitUploadRsp); ok {
 			m.handleInitUploadRsp(value)
 		} else if value, ok := msg.(*pb.UploadRsp); ok {
 			m.handleUploadRsp(value)

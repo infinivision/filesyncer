@@ -7,6 +7,7 @@ import (
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/codec"
 	"github.com/infinivision/filesyncer/pkg/pb"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -41,9 +42,9 @@ func (s *session) close() {
 	}
 }
 
-func (s *session) onReq(msg interface{}) {
+func (s *session) onReq(msg interface{}) (error){
 	if req, ok := msg.(*pb.Handshake); ok {
-		s.handshake(req)
+		return s.handshake(req)
 	} else if req, ok := msg.(*pb.InitUploadReq); ok {
 		if s.filesizeHistogram != nil {
 			s.filesizeHistogram.Observe(float64(req.ContentLength))
@@ -61,10 +62,22 @@ func (s *session) onReq(msg interface{}) {
 		}
 		s.doRsp(msg)
 	}
+	return nil
 }
 
-func (s *session) handshake(req *pb.Handshake) {
-	s.mac = req.Mac
+func (s *session) handshake(req *pb.Handshake) (err error){
+	var shop uint64
+	var mac string
+	var cameras []string
+	var found bool
+	if shop, mac, found = fileMgr.adminCache.GetShop(req.Mac); !found {
+		err = errors.Errorf("cannot determine shop id for mac %s", req.Mac)
+		return
+	}
+	if cameras, found = fileMgr.adminCache.GetCameras(mac); !found {
+		err = errors.Errorf("cannot determine cameras for mac %s", req.Mac);
+		return
+	}
 	if s.heartbeatCount == nil {
 		s.heartbeatCount = prometheus.NewCounter(prometheus.CounterOpts{
 			Name: fmt.Sprintf("terminal_heartbeat_%s", req.Mac),
@@ -78,6 +91,13 @@ func (s *session) handshake(req *pb.Handshake) {
 		prometheus.MustRegister(s.heartbeatCount)
 		prometheus.MustRegister(s.filesizeHistogram)
 	}
+	s.mac = mac
+	s.doRsp(&pb.HandshakeRsp{
+		Shop:  shop,
+		Mac:   mac,
+		Cameras: cameras,
+	})
+	return
 }
 
 func (s *session) initUpload(req *pb.InitUploadReq) {

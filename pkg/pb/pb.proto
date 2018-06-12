@@ -21,17 +21,24 @@ enum Code {
 enum Cmd {
     CmdHB                = 0;
     CmdHandshake         = 1;
-    CmdUploadInit        = 2;
-    CmdUploadInitRsp     = 3;
-    CmdUpload            = 4;
-    CmdUploadRsp         = 5;
-    CmdUploadComplete    = 6;
-    CmdUploadCompleteRsp = 7;
-    CmdUploadContinue    = 8;
+    CmdHandshakeRsp      = 2;
+    CmdUploadInit        = 3;
+    CmdUploadInitRsp     = 4;
+    CmdUpload            = 5;
+    CmdUploadRsp         = 6;
+    CmdUploadComplete    = 7;
+    CmdUploadCompleteRsp = 8;
+    CmdUploadContinue    = 9;
 }
 
 message Handshake {
     optional string mac   = 1 [(gogoproto.nullable) = false];
+}
+
+message HandshakeRsp {
+    optional uint64 shop  = 1 [(gogoproto.nullable) = false];
+    optional string mac   = 2 [(gogoproto.nullable) = false];
+    repeated string cameras   = 3;
 }
 
 message InitUploadReq {

@@ -10,6 +10,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
+	// TODO: start reaping pictures from cameras
+	log.Infof("got HandshakeRsp %+v", msg)
+}
+
 func (m *Monitor) inProcessing(file string) bool {
 	inProcessing := m.checkExists(m.prepares, file)
 	if !inProcessing {

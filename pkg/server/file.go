@@ -12,10 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	UnknownShop int64 = -1
-)
-
 type fileManager struct {
 	sync.RWMutex
 
