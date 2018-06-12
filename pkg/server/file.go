@@ -100,7 +100,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 								err = errors.Wrap(err, "")
 								log.Errorf("%+v", err)
 							} else {
-								mgr.imgCh <- ImgMsg{Shop: shop, Position: position, Img: img}
+								mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, Img: img}
 							}
 						} else {
 							log.Warnf("cannont determine position for (mac %s, camera %s)", mac2, f.meta.Camera)

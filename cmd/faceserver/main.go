@@ -65,10 +65,11 @@ var (
 )
 
 type VecMsg struct {
-	Shop uint64
+	Shop     uint64
 	Position uint32
-	Img  []byte
-	Vec  []float32
+	ModTime  int64
+	Img      []byte
+	Vec      []float32
 }
 
 func main() {

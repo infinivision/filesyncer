@@ -81,6 +81,8 @@ func (m *Monitor) handlePrepare(file string) {
 			Seq:           seq,
 			ContentLength: fileSize,
 			ChunkCount:    int32(cnt),
+			ModTime:       info.ModTime().Unix(),
+			//TODO: determine camera
 		},
 		step: prepare,
 		to:   m.nextAvailable(),

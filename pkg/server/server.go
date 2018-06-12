@@ -13,9 +13,10 @@ import (
 )
 
 type ImgMsg struct {
-	Shop uint64
+	Shop     uint64
 	Position uint32
-	Img  []byte
+	ModTime  int64
+	Img      []byte
 }
 
 // FileServer file server
@@ -107,7 +108,7 @@ func (fs *FileServer) doConnection(conn goetty.IOSession) error {
 			addr,
 			value)
 
-		if err := s.onReq(value); err !=nil {
+		if err := s.onReq(value); err != nil {
 			return err
 		}
 	}

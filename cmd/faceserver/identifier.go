@@ -225,7 +225,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 		this.ageCache.SetDefault(strUid, ag)
 		visit := &Visit{
 			Uid:       uint64(xids[i]),
-			VisitTime: uint64(time.Now().Unix()),
+			VisitTime: uint64(vecMsgs[i].ModTime),
 			Shop:      uint64(vecMsgs[i].Shop),
 			Position:  uint32(vecMsgs[i].Position),
 			Age:       uint32(ag.Age),
