@@ -63,19 +63,25 @@ func NewIdentifier(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, bat
 		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
 
 		searchDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "idendify_search_duration_seconds",
-			Help:    "identify RPC latency distributions.",
-			Buckets: prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_search_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		}),
 		addDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "idendify_add_duration_seconds",
-			Help:    "identify RPC latency distributions.",
-			Buckets: prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_add_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		}),
 		updateDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "idendify_update_duration_seconds",
-			Help:    "identify RPC latency distributions.",
-			Buckets: prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_update_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		}),
 	}
 	prometheus.MustRegister(iden.searchDuration)

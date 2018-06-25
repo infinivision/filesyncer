@@ -31,9 +31,11 @@ func NewPredictor(servURL string, imgCh <-chan server.ImgMsg, vecCh chan<- VecMs
 		hc:       &http.Client{Timeout: time.Second * 10},
 		parallel: parallel,
 		rpcDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "predication_rpc_duration_seconds",
-			Help:    "predication RPC latency distributions.",
-			Buckets: prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "predication_rpc_duration_seconds",
+			Help:      "predication RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		}),
 	}
 	prometheus.MustRegister(pred.rpcDuration)
