@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/fagongzi/goetty"
 	"github.com/fagongzi/log"
@@ -11,20 +12,43 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var (
+	//metrics per terminal
+	termHeartbeatCountVec = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "term_heartbeat",
+			Help:      "terminal hearbeat count",
+		}, []string{"shop", "mac"})
+	termFilesizeHistogramVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      fmt.Sprintf("terminal_filesize"),
+			Help:      "terminal filesize distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 10240, 100), //100 buckets, each is 10K.
+		}, []string{"shop", "mac"})
+	termMetricOnce sync.Once
+)
+
+func initMetricsForTerms() {
+	prometheus.MustRegister(termHeartbeatCountVec)
+	prometheus.MustRegister(termFilesizeHistogramVec)
+}
+
 type session struct {
 	addr string
 	id   int64
 	fid  int32
 	conn goetty.IOSession
 
-	mac string
-
-	//metrics per session
-	heartbeatCount    prometheus.Counter
-	filesizeHistogram prometheus.Histogram
+	shop string
+	mac  string
 }
 
 func newSession(conn goetty.IOSession) *session {
+	termMetricOnce.Do(initMetricsForTerms)
 	return &session{
 		addr: conn.RemoteAddr(),
 		id:   conn.ID().(int64),
@@ -36,19 +60,13 @@ func (s *session) close() {
 	if s.conn != nil {
 		s.conn.Close()
 	}
-	if s.heartbeatCount != nil {
-		prometheus.Unregister(s.heartbeatCount)
-		prometheus.Unregister(s.filesizeHistogram)
-	}
 }
 
-func (s *session) onReq(msg interface{}) (error){
+func (s *session) onReq(msg interface{}) error {
 	if req, ok := msg.(*pb.Handshake); ok {
 		return s.handshake(req)
 	} else if req, ok := msg.(*pb.InitUploadReq); ok {
-		if s.filesizeHistogram != nil {
-			s.filesizeHistogram.Observe(float64(req.ContentLength))
-		}
+		termFilesizeHistogramVec.WithLabelValues(s.shop, s.mac).Observe(float64(req.ContentLength))
 		s.initUpload(req)
 	} else if req, ok := msg.(*pb.UploadReq); ok {
 		s.upload(req)
@@ -57,15 +75,13 @@ func (s *session) onReq(msg interface{}) (error){
 	} else if req, ok := msg.(*pb.UploadCompleteReq); ok {
 		s.uploadComplete(req)
 	} else if msg == codec.HB {
-		if s.heartbeatCount != nil {
-			s.heartbeatCount.Inc()
-		}
+		termHeartbeatCountVec.WithLabelValues(s.shop, s.mac).Inc()
 		s.doRsp(msg)
 	}
 	return nil
 }
 
-func (s *session) handshake(req *pb.Handshake) (err error){
+func (s *session) handshake(req *pb.Handshake) (err error) {
 	var shop uint64
 	var mac string
 	var cameras []string
@@ -75,26 +91,14 @@ func (s *session) handshake(req *pb.Handshake) (err error){
 		return
 	}
 	if cameras, found = fileMgr.adminCache.GetCameras(mac); !found {
-		err = errors.Errorf("cannot determine cameras for mac %s", req.Mac);
+		err = errors.Errorf("cannot determine cameras for mac %s", req.Mac)
 		return
 	}
-	if s.heartbeatCount == nil {
-		s.heartbeatCount = prometheus.NewCounter(prometheus.CounterOpts{
-			Name: fmt.Sprintf("terminal_heartbeat_%s", req.Mac),
-			Help: "terminal hearbeat count",
-		})
-		s.filesizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    fmt.Sprintf("terminal_filesize_%s", req.Mac),
-			Help:    "terminal filesize distributions.",
-			Buckets: prometheus.LinearBuckets(0, 10240, 100), //100 buckets, each is 10K.
-		})
-		prometheus.MustRegister(s.heartbeatCount)
-		prometheus.MustRegister(s.filesizeHistogram)
-	}
+	s.shop = fmt.Sprintf("%d", shop)
 	s.mac = mac
 	s.doRsp(&pb.HandshakeRsp{
-		Shop:  shop,
-		Mac:   mac,
+		Shop:    shop,
+		Mac:     mac,
 		Cameras: cameras,
 	})
 	return
