@@ -18,13 +18,12 @@ const (
 
 type AdminCache struct {
 	rwlock  sync.RWMutex
-	shopMap map[string]uint64      //mac -> shop id
-	cameMap map[string][]string   //mac -> camera names
-	posMap map[string]uint32      //mac + camera name -> position
-	
+	shopMap map[string]uint64   //mac -> shop id
+	cameMap map[string][]string //mac -> camera names
+	posMap  map[string]uint32   //mac + camera name -> position
 
-	db  *sqlx.DB
-	termSql string
+	db        *sqlx.DB
+	termSql   string
 	cameraSql string
 }
 
@@ -34,8 +33,8 @@ type terminal struct {
 }
 
 type camera struct {
-	Mac_id string
-	Name   string
+	Mac_id   string
+	Name     string
 	Position uint32
 }
 
@@ -47,8 +46,8 @@ func NewAdminCache(addr, username, password, database string) (ac *AdminCache, e
 		return
 	}
 	ac = &AdminCache{
-		db:  db,
-		termSql: fmt.Sprintf("SELECT mac, shop_id FROM iot_terminal"),
+		db:        db,
+		termSql:   fmt.Sprintf("SELECT mac, shop_id FROM iot_terminal"),
 		cameraSql: fmt.Sprintf("SELECT mac_id, name, position FROM iot_camera"),
 	}
 	err = ac.flush()
@@ -105,7 +104,7 @@ func (this *AdminCache) flush() (err error) {
 	this.cameMap = cameMap2
 	this.posMap = posMap2
 	this.rwlock.Unlock()
-	log.Infof("got %d terminals, % cameras", len(terms), len(cames))
+	log.Infof("got %d terminals, %d cameras", len(terms), len(cames))
 	return
 }
 
