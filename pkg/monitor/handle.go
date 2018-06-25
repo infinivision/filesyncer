@@ -12,7 +12,6 @@ import (
 )
 
 func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
-	// TODO: start reaping pictures from cameras
 	log.Infof("got HandshakeRsp %+v", msg)
 }
 

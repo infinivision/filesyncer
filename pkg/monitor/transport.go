@@ -37,12 +37,12 @@ func (m *Monitor) ConnectFailed(addr string, err error) {
 // Connected pool status handler
 func (m *Monitor) Connected(addr string, conn goetty.IOSession) {
 	log.Infof("net: %s connected %p", addr, conn)
-	handshake := &pb.Handshake{Mac: m.cfg.ID}
-	go m.doSend(addr, handshake)
 	go m.startReadLoop(addr, conn)
 }
 
 func (m *Monitor) startReadLoop(addr string, conn goetty.IOSession) {
+	handshake := &pb.Handshake{Mac: m.cfg.ID}
+	m.doSend(addr, handshake)
 	for {
 		msg, err := conn.ReadTimeout(m.cfg.TimeoutRead)
 		if err != nil {
