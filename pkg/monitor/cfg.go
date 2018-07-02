@@ -40,9 +40,9 @@ func (c *Cfg) getFiles() ([]string, error) {
 			if path == c.Target {
 				return nil
 			}
-			// walk c.Target
 			dir, _ := filepath.Split(path)
-			if dir != c.Target {
+			absDir, _ := filepath.Abs(dir)
+			if absDir != c.Target {
 				return filepath.SkipDir
 			}
 			return nil
