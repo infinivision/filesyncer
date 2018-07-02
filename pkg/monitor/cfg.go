@@ -34,23 +34,23 @@ func (c *Cfg) LastFileName() string {
 func (c *Cfg) getFiles() ([]string, error) {
 	var files []string
 
+	// Walk the file tree rooted at c.Target, skip subdirectories who's depth is larger than 1.
 	err := filepath.Walk(c.Target, func(path string, f os.FileInfo, err error) error {
-		if f == nil {
+		if f.IsDir() {
+			if path == c.Target {
+				return nil
+			}
+			// walk c.Target
+			dir, _ := filepath.Split(path)
+			if dir != c.Target {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		if f.IsDir() && path == c.Target {
+		if path == c.LastFileName() {
 			return nil
 		}
-
-		if f.IsDir() && path != c.Target {
-			return filepath.SkipDir
-		}
-
-		if !f.IsDir() && path == c.LastFileName() {
-			return nil
-		}
-
 		if len(files) < c.BatchFetch {
 			files = append(files, path)
 		}
