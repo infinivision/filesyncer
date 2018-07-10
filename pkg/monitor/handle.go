@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,25 +12,29 @@ import (
 	"golang.org/x/net/context"
 )
 
+// TermConf is persisted to a toml. So all members shall be exported.
+type TermConf struct {
+	Cameras []*pb.Camera
+}
+
 func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
 	log.Infof("got HandshakeRsp %+v", msg)
 	//Generate config file edge-tracker.toml
-	var buf bytes.Buffer
-	e := toml.NewEncoder(&buf)
-	err := e.Encode(msg.Cameras)
-	if err != nil {
-		log.Errorf("got error %+v", err)
-		return
+	termConf := TermConf{
+		Cameras: msg.Cameras,
 	}
 	f, err := os.OpenFile("/opt/config/edge-tracker.toml", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		log.Errorf("got error %+v", err)
+		log.Errorf("failed to open config file, error %+v", err)
 		return
 	}
-	if _, err = buf.WriteTo(f); err != nil {
-		log.Errorf("got error %+v", err)
+	defer f.Close()
+	e := toml.NewEncoder(f)
+	if err = e.Encode(termConf); err != nil {
+		log.Errorf("failed to encode config, error %+v", err)
 		return
 	}
+	log.Infof("updated /opt/config/edge-tracker.toml")
 }
 
 func (m *Monitor) inProcessing(file string) bool {

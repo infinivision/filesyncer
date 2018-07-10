@@ -41,8 +41,6 @@ func (m *Monitor) Connected(addr string, conn goetty.IOSession) {
 }
 
 func (m *Monitor) startReadLoop(addr string, conn goetty.IOSession) {
-	handshake := &pb.Handshake{Mac: m.cfg.ID}
-	m.doSend(addr, handshake)
 	for {
 		msg, err := conn.ReadTimeout(m.cfg.TimeoutRead)
 		if err != nil {
@@ -83,6 +81,17 @@ func (m *Monitor) doSend(to string, msg interface{}) error {
 			to,
 			err)
 		return err
+	}
+
+	if !m.handShakeSent {
+		m.handShakeSent = true
+		handshake := &pb.Handshake{Mac: m.cfg.ID}
+		if err = m.doSend(to, handshake); err != nil {
+			log.Errorf("net: %s failed to send handshake, errors:%+v",
+				to,
+				err)
+			return err
+		}
 	}
 
 	err = conn.WriteAndFlush(msg)
