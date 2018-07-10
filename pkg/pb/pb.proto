@@ -31,6 +31,13 @@ enum Cmd {
     CmdUploadContinue    = 9;
 }
 
+message Camera {
+    optional string Name     = 1 [(gogoproto.nullable) = false];
+    optional string Username = 2 [(gogoproto.nullable) = false];
+    optional string Password = 3 [(gogoproto.nullable) = false];
+    optional uint32 Position = 4 [(gogoproto.nullable) = false];
+}
+
 message Handshake {
     optional string mac   = 1 [(gogoproto.nullable) = false];
 }
@@ -38,7 +45,7 @@ message Handshake {
 message HandshakeRsp {
     optional uint64 shop  = 1 [(gogoproto.nullable) = false];
     optional string mac   = 2 [(gogoproto.nullable) = false];
-    repeated string cameras   = 3;
+    repeated Camera cameras   = 3;
 }
 
 message InitUploadReq {

@@ -19,7 +19,7 @@ const (
 type AdminCache struct {
 	rwlock  sync.RWMutex
 	shopMap map[string]uint64   //mac -> shop id
-	cameMap map[string][]string //mac -> camera names
+	cameMap map[string][]Camera //mac -> cameras
 	posMap  map[string]uint32   //mac + camera name -> position
 
 	db        *sqlx.DB
@@ -32,9 +32,11 @@ type terminal struct {
 	Shop_id uint64
 }
 
-type camera struct {
+type Camera struct {
 	Mac_id   string
 	Name     string
+	Username string
+	Password string
 	Position uint32
 }
 
@@ -48,7 +50,7 @@ func NewAdminCache(addr, username, password, database string) (ac *AdminCache, e
 	ac = &AdminCache{
 		db:        db,
 		termSql:   fmt.Sprintf("SELECT mac, shop_id FROM iot_terminal"),
-		cameraSql: fmt.Sprintf("SELECT mac_id, name, position FROM iot_camera"),
+		cameraSql: fmt.Sprintf("SELECT mac_id, name, username, password, position FROM iot_camera"),
 	}
 	err = ac.flush()
 	return
@@ -73,7 +75,7 @@ func (this *AdminCache) UpdateLoop(ctx context.Context) {
 // This shall be invoked regularly
 func (this *AdminCache) flush() (err error) {
 	terms := []terminal{}
-	cames := []camera{}
+	cames := []Camera{}
 	if err = this.db.Select(&terms, this.termSql); err != nil {
 		err = errors.Wrap(err, "")
 		return
@@ -86,17 +88,17 @@ func (this *AdminCache) flush() (err error) {
 	for _, term := range terms {
 		shopMap2[term.Mac] = term.Shop_id
 	}
-	cameMap2 := make(map[string][]string)
+	cameMap2 := make(map[string][]Camera)
 	posMap2 := make(map[string]uint32)
-	var names []string
 	var found bool
 	for _, came := range cames {
-		if names, found = cameMap2[came.Mac_id]; found {
-			names = append(names, came.Name)
+		var cameras []Camera
+		if cameras, found = cameMap2[came.Mac_id]; found {
+			cameras = append(cameras, came)
 		} else {
-			names = []string{came.Name}
+			cameras = []Camera{came}
 		}
-		cameMap2[came.Mac_id] = names
+		cameMap2[came.Mac_id] = cameras
 		posMap2[fmt.Sprintf("%s-%s", came.Mac_id, came.Name)] = came.Position
 	}
 	this.rwlock.Lock()
@@ -124,7 +126,7 @@ func (this *AdminCache) GetShop(macs string) (shopId uint64, mac string, found b
 	return
 }
 
-func (this *AdminCache) GetCameras(mac string) (cameras []string, found bool) {
+func (this *AdminCache) GetCameras(mac string) (cameras []Camera, found bool) {
 	this.rwlock.RLock()
 	cameras, found = this.cameMap[mac]
 	this.rwlock.RUnlock()

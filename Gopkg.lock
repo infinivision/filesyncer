@@ -8,6 +8,12 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  name = "github.com/burntsushi/toml"
+  packages = ["."]
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
@@ -230,6 +236,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c1198ef00e1ee7b9c6fa9f80f18a7f4ea2ea3173bd20bd3ad4b80ec36fcddd93"
+  inputs-digest = "aaaac305f3bdc9c4f68d5c86fdf4f373ba7b0967b0e4e8efaa2d8490f4e977f4"
   solver-name = "gps-cdcl"
   solver-version = 1

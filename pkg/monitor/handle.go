@@ -1,11 +1,13 @@
 package monitor
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/burntsushi/toml"
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/pb"
 	"golang.org/x/net/context"
@@ -13,6 +15,23 @@ import (
 
 func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
 	log.Infof("got HandshakeRsp %+v", msg)
+	//Generate config file edge-tracker.toml
+	var buf bytes.Buffer
+	e := toml.NewEncoder(&buf)
+	err := e.Encode(msg.Cameras)
+	if err != nil {
+		log.Errorf("got error %+v", err)
+		return
+	}
+	f, err := os.OpenFile("/opt/config/edge-tracker.toml", os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		log.Errorf("got error %+v", err)
+		return
+	}
+	if _, err = buf.WriteTo(f); err != nil {
+		log.Errorf("got error %+v", err)
+		return
+	}
 }
 
 func (m *Monitor) inProcessing(file string) bool {
