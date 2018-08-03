@@ -45,7 +45,7 @@ var (
 	retryIntervalSec    = flag.Int("retry-interval", 10, "Interval(sec): interval seconds between two retries")
 	retryIntervalFactor = flag.Int("retry-interval-factor", 2, "Factor: retry interval factor")
 
-	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r50/predict", "Face predict server url")
+	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r100/predict", "Face predict server url")
 	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
 	nsqlookupdURLs = flag.String("nsqlookupd-urls", "http://127.0.0.1:4161", "List of URLs of nsqlookupd.")
 	topic          = flag.String("topic", "visits", "NSQ topic.")
