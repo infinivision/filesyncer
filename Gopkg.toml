@@ -26,6 +26,11 @@
 
 ignored = ["github.com/infinivision/vectodb"]
 
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hudl/fargo"
+
 [[constraint]]
   name = "github.com/fagongzi/goetty"
   version = "1.1.3"
