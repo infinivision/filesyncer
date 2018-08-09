@@ -8,10 +8,16 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
-  name = "github.com/burntsushi/toml"
+  name = "github.com/cenkalti/backoff"
   packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
+  revision = "2ea60e5f094469f9e65adb9cd103795b73ae743e"
+  version = "v2.0.0"
+
+[[projects]]
+  name = "github.com/clbanning/x2j"
+  packages = ["."]
+  revision = "8514236bc68ead794076e8ad386351dda45e69c4"
+  version = "1.1"
 
 [[projects]]
   branch = "master"
@@ -43,16 +49,16 @@
   version = "v0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/franela/goreq"
+  packages = ["."]
+  revision = "bcd34c9993f899273c74baaa95e15386cd97b6e7"
+
+[[projects]]
   name = "github.com/go-ini/ini"
   packages = ["."]
   revision = "06f5f3d67269ccec1fe5fe4134ba6e982984f7f5"
   version = "v1.37.0"
-
-[[projects]]
-  name = "github.com/go-sql-driver/mysql"
-  packages = ["."]
-  revision = "d523deb1b23d913de5bdada721a6071e71283618"
-  version = "v1.4.0"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
@@ -77,19 +83,22 @@
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/jmoiron/sqlx"
-  packages = [
-    ".",
-    "reflectx"
-  ]
-  revision = "2aeb6a910c2b94f2d5eb53d9895d80e27264ec41"
+  name = "github.com/hudl/fargo"
+  packages = ["."]
+  revision = "14ced469f7dc175f6fbf9f55d799f9f12e302965"
+  version = "1.3.1"
 
 [[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
+
+[[projects]]
+  name = "github.com/miekg/dns"
+  packages = ["."]
+  revision = "5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1"
+  version = "v1.0.8"
 
 [[projects]]
   name = "github.com/minio/minio-go"
@@ -109,6 +118,12 @@
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
   revision = "3864e76763d94a6df2f9960b16a20a33da9f9a66"
+
+[[projects]]
+  name = "github.com/op/go-logging"
+  packages = ["."]
+  revision = "b2cb9fa56473e98db8caba80237377e83fe44db5"
+  version = "v1"
 
 [[projects]]
   name = "github.com/patrickmn/go-cache"
@@ -176,6 +191,8 @@
   packages = [
     "argon2",
     "blake2b",
+    "ed25519",
+    "ed25519/internal/edwards25519",
     "ssh/terminal"
   ]
   revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
@@ -184,9 +201,14 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = [
+    "bpf",
     "context",
     "http/httpguts",
-    "idna"
+    "idna",
+    "internal/iana",
+    "internal/socket",
+    "ipv4",
+    "ipv6"
   ]
   revision = "dfa909b99c79129e1100513e5cd36307665e5723"
 
@@ -228,14 +250,25 @@
   revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
 
 [[projects]]
-  name = "google.golang.org/appengine"
-  packages = ["cloudsql"]
-  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
-  version = "v1.0.0"
+  name = "gopkg.in/gcfg.v1"
+  packages = [
+    ".",
+    "scanner",
+    "token",
+    "types"
+  ]
+  revision = "61b2c08bc8f6068f7c5ca684372f9a6cb1c45ebe"
+  version = "v1.2.3"
+
+[[projects]]
+  name = "gopkg.in/warnings.v0"
+  packages = ["."]
+  revision = "ec4a0fea49c7b46c2aeb0b51aac55779c607e52b"
+  version = "v0.1.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aaaac305f3bdc9c4f68d5c86fdf4f373ba7b0967b0e4e8efaa2d8490f4e977f4"
+  inputs-digest = "c8e66161e427a0fa7f6fd23a2680ae15987b94ab028d70c95d14a412bf638665"
   solver-name = "gps-cdcl"
   solver-version = 1

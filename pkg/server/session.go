@@ -83,33 +83,16 @@ func (s *session) onReq(msg interface{}) error {
 
 func (s *session) handshake(req *pb.Handshake) (err error) {
 	var shop uint64
-	var mac string
-	var cameras []Camera
 	var found bool
-	if shop, mac, found = fileMgr.adminCache.GetShop(req.Mac); !found {
+	if shop, found, err = fileMgr.cmdb.GetShop(req.Mac); err != nil {
+		return
+	} else if !found {
 		err = errors.Errorf("cannot determine shop id for mac %s", req.Mac)
 		return
 	}
-	if cameras, found = fileMgr.adminCache.GetCameras(mac); !found {
-		err = errors.Errorf("cannot determine cameras for mac %s", req.Mac)
-		return
-	}
 	s.shop = fmt.Sprintf("%d", shop)
-	s.mac = mac
-	pbCameras := make([]*pb.Camera, len(cameras))
-	for i, came := range cameras {
-		pbCameras[i] = &pb.Camera{
-			Name:     came.Name,
-			Username: came.Username,
-			Password: came.Password,
-			Position: came.Position,
-		}
-	}
-	s.doRsp(&pb.HandshakeRsp{
-		Shop:    shop,
-		Mac:     mac,
-		Cameras: pbCameras,
-	})
+	s.mac = req.Mac
+	s.doRsp(&pb.HandshakeRsp{})
 	return
 }
 

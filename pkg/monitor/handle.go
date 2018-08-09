@@ -6,35 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/burntsushi/toml"
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/pb"
 	"golang.org/x/net/context"
 )
 
-// TermConf is persisted to a toml. So all members shall be exported.
-type TermConf struct {
-	Cameras []*pb.Camera
-}
-
 func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
 	log.Infof("got HandshakeRsp %+v", msg)
-	//Generate config file edge-tracker.toml
-	termConf := TermConf{
-		Cameras: msg.Cameras,
-	}
-	f, err := os.OpenFile("/opt/config/edge-tracker.toml", os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		log.Errorf("failed to open config file, error %+v", err)
-		return
-	}
-	defer f.Close()
-	e := toml.NewEncoder(f)
-	if err = e.Encode(termConf); err != nil {
-		log.Errorf("failed to encode config, error %+v", err)
-		return
-	}
-	log.Infof("updated /opt/config/edge-tracker.toml")
 }
 
 func (m *Monitor) inProcessing(file string) bool {

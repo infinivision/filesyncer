@@ -19,16 +19,16 @@ type fileManager struct {
 	allc  uint64
 	files map[uint64]*file
 
-	adminCache *AdminCache
-	imgCh      chan<- ImgMsg
+	cmdb  *CmdbApi
+	imgCh chan<- ImgMsg
 }
 
-func newFileManager(cfg RetryCfg, adminCache *AdminCache, imgCh chan<- ImgMsg) *fileManager {
+func newFileManager(cfg RetryCfg, cmdb *CmdbApi, imgCh chan<- ImgMsg) *fileManager {
 	return &fileManager{
-		files:      make(map[uint64]*file, 1024),
-		cfg:        cfg,
-		adminCache: adminCache,
-		imgCh:      imgCh,
+		files: make(map[uint64]*file, 1024),
+		cfg:   cfg,
+		cmdb:  cmdb,
+		imgCh: imgCh,
 	}
 }
 
@@ -91,22 +91,24 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 			code := f.complete(req)
 			if code != pb.CodeOSSError {
 				if mgr.imgCh != nil {
-					if shop, mac2, found := mgr.adminCache.GetShop(mac); found {
-						if position, found := mgr.adminCache.GetPosition(mac2, f.meta.Camera); found {
-							var img []byte
-							var err error
-							f.readed = 0
-							if img, err = ioutil.ReadAll(f); err != nil {
-								err = errors.Wrap(err, "")
-								log.Errorf("%+v", err)
-							} else {
-								mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, Img: img}
-							}
-						} else {
-							log.Warnf("cannont determine position for (mac %s, camera %s)", mac2, f.meta.Camera)
-						}
+					var shop uint64
+					var position uint32
+					var found bool
+					var err error
+					if shop, position, found, err = mgr.cmdb.GetPosition(mac, f.meta.Camera); err != nil {
+						log.Warnf("GetPosition(%s, %s) failed with error %+v", mac, f.meta.Camera, err)
+					} else if !found {
+						log.Warnf("GetPosition(%s, %s) didn't find", mac, f.meta.Camera)
 					} else {
-						log.Warnf("cannont determine shop id for mac %s", mac)
+						var img []byte
+						var err error
+						f.readed = 0
+						if img, err = ioutil.ReadAll(f); err != nil {
+							err = errors.Wrap(err, "")
+							log.Errorf("%+v", err)
+						} else {
+							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, Img: img}
+						}
 					}
 				}
 				mgr.remove(fid)

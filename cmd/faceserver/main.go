@@ -56,10 +56,8 @@ var (
 	identifyWorkDir   = flag.String("identify-work-dir", "/data", "Work directory of vectodb.")
 	identifyDim       = flag.Int("identify-dim", 512, "Dimension of vectors inside vectodb.")
 
-	adminAddr     = flag.String("admin-addr", "127.0.0.1:8080", "admin database host and port.")
-	adminUsername = flag.String("admin-username", "username", "admin database username.")
-	adminPassword = flag.String("admin-password", "password", "admin database password.")
-	adminDatabase = flag.String("admin-database", "iot", "admin database.")
+	eurekaAddr = flag.String("eureka-addr", "http://127.0.0.1:8761/eureka/", "eureka server address list, seperated by comma.")
+	eurekaApp  = flag.String("eureka-app", "iot-backend", "CMDB service name which been registered with eureka.")
 
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
@@ -151,9 +149,7 @@ func parseCfg() *server.Cfg {
 	cfg.Retry.RetryFactor = *retryIntervalFactor
 	cfg.Retry.RetryInterval = time.Second * time.Duration(*retryIntervalSec)
 
-	cfg.Admin.Addr = *adminAddr
-	cfg.Admin.Username = *adminUsername
-	cfg.Admin.Password = *adminPassword
-	cfg.Admin.Database = *adminDatabase
+	cfg.EurekaAddr = *eurekaAddr
+	cfg.EurekaApp = *eurekaApp
 	return cfg
 }

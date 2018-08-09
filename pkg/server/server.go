@@ -27,22 +27,22 @@ type FileServer struct {
 	sessions  map[int64]*session
 	tcpServer *goetty.Server
 
-	ctx        context.Context
-	cancel     context.CancelFunc
-	adminCache *AdminCache
-	imgCh      chan<- ImgMsg
+	ctx    context.Context
+	cancel context.CancelFunc
+	cmdb   *CmdbApi
+	imgCh  chan<- ImgMsg
 }
 
 // NewFileServer create a file server
 // The file server will received files via tcp protocol,
 // and support resume data from break point.
 func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
-	adminCache, err := NewAdminCache(cfg.Admin.Addr, cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Database)
+	cmdb, err := NewCmdbApi(cfg.EurekaAddr, cfg.EurekaApp)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
 
-	initG(cfg, adminCache, imgCh)
+	initG(cfg, cmdb, imgCh)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &FileServer{
@@ -54,16 +54,15 @@ func NewFileServer(cfg *Cfg, imgCh chan<- ImgMsg) *FileServer {
 			goetty.WithServerMiddleware(goetty.NewSyncProtocolServerMiddleware(codec.FileDecoder, codec.FileEncoder, func(conn goetty.IOSession, msg interface{}) error {
 				return conn.WriteAndFlush(msg)
 			}))),
-		ctx:        ctx,
-		cancel:     cancel,
-		adminCache: adminCache,
-		imgCh:      imgCh,
+		ctx:    ctx,
+		cancel: cancel,
+		cmdb:   cmdb,
+		imgCh:  imgCh,
 	}
 }
 
 // Start start the file server
 func (fs *FileServer) Start() error {
-	go fs.adminCache.UpdateLoop(fs.ctx)
 	return fs.tcpServer.Start(fs.doConnection)
 }
 
