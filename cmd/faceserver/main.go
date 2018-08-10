@@ -56,7 +56,7 @@ var (
 	identifyWorkDir   = flag.String("identify-work-dir", "/data", "Work directory of vectodb.")
 	identifyDim       = flag.Int("identify-dim", 512, "Dimension of vectors inside vectodb.")
 
-	eurekaAddr = flag.String("eureka-addr", "http://127.0.0.1:8761/eureka/", "eureka server address list, seperated by comma.")
+	eurekaAddr = flag.String("eureka-addr", "http://127.0.0.1:8761/eureka", "eureka server address list, seperated by comma.")
 	eurekaApp  = flag.String("eureka-app", "iot-backend", "CMDB service name which been registered with eureka.")
 
 	showVer = flag.Bool("version", false, "Show version and quit.")

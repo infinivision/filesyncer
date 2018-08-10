@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"math/rand"
 	"strings"
 
@@ -31,7 +32,10 @@ func NewCmdbApi(eurekaAddr, eurekaApp string) (ca *CmdbApi, err error) {
 		err = errors.Wrap(err, "")
 		return
 	}
+	regInfo, _ := json.Marshal(ca.app)
+	log.Infof("Application %v in Eureka: %+v", eurekaApp, string(regInfo))
 	// starts a goroutine that updates the application on poll interval
+	ca.conn.PollInterval = 30
 	ca.conn.UpdateApp(ca.app)
 	return
 }
