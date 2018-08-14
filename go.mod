@@ -1,0 +1,37 @@
+module github.com/infinivision/filesyncer
+
+require (
+	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
+	github.com/cenkalti/backoff v0.0.0-20171224164212-2ea60e5f0944
+	github.com/clbanning/x2j v0.0.0-20161012221638-8514236bc68e
+	github.com/dustin/go-humanize v0.0.0-20180421182945-02af3965c54e
+	github.com/fagongzi/goetty v0.0.0-20180427060148-8f06d410550f
+	github.com/fagongzi/log v0.0.0-20170831135209-9a647df25e0e
+	github.com/fagongzi/util v0.0.0-20180330021808-4acf02da76a9
+	github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8
+	github.com/go-ini/ini v0.0.0-20180526224542-06f5f3d67269
+	github.com/gogo/protobuf v0.0.0-20180202161900-1adfc126b415
+	github.com/golang/protobuf v0.0.0-20180430185241-b4deda0973fb
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+	github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554
+	github.com/matttproud/golang_protobuf_extensions v0.0.0-20160424113007-c12348ce28de
+	github.com/miekg/dns v0.0.0-20180604210613-5a2b9fab83ff
+	github.com/minio/minio-go v0.0.0-20180529181008-034ea465b079
+	github.com/mitchellh/go-homedir v0.0.0-20180523094522-3864e76763d9
+	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	github.com/patrickmn/go-cache v0.0.0-20170722040110-a3647f8e31d7
+	github.com/pkg/errors v0.0.0-20160929014801-645ef00459ed
+	github.com/prometheus/client_golang v0.0.0-20160817154824-c5b7fccd2042
+	github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5
+	github.com/prometheus/common v0.0.0-20180518154759-7600349dcfe1
+	github.com/prometheus/procfs v0.0.0-20180528183257-fe93d378a6b0
+	github.com/sirupsen/logrus v0.0.0-20180311225137-c155da19408a
+	github.com/youzan/go-nsq v0.0.0-20180306073406-048121fec907
+	golang.org/x/crypto v0.0.0-20180527072434-ab813273cd59
+	golang.org/x/net v0.0.0-20180524181706-dfa909b99c79
+	golang.org/x/sys v0.0.0-20180525142821-c11f84a56e43
+	golang.org/x/text v0.0.0-20171214130843-f21a4dfb5e38
+	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
+	gopkg.in/gcfg.v1 v1.0.0-20180517202447-61b2c08bc8f6
+	gopkg.in/warnings.v0 v0.0.0-20171115193034-ec4a0fea49c7
+)
