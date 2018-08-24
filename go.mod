@@ -18,7 +18,7 @@ require (
 	github.com/gopherjs/gopherjs v0.0.0-20180628210949-0892b62f0d9f // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
 	github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554
-	github.com/infinivision/vectodb v0.0.0-20180818131431-59f9ae7f7deb
+	github.com/infinivision/vectodb v0.0.0-20180824071010-2cbdfde4beed
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/matttproud/golang_protobuf_extensions v0.0.0-20160424113007-c12348ce28de // indirect
 	github.com/miekg/dns v0.0.0-20180604210613-5a2b9fab83ff // indirect
