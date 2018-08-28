@@ -18,7 +18,7 @@ require (
 	github.com/gopherjs/gopherjs v0.0.0-20180628210949-0892b62f0d9f // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
 	github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554
-	github.com/infinivision/vectodb v0.0.0-20180824071010-2cbdfde4beed
+	github.com/infinivision/vectodb v0.0.0-20180828085706-ebbb40c9bbf7
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/matttproud/golang_protobuf_extensions v0.0.0-20160424113007-c12348ce28de // indirect
 	github.com/miekg/dns v0.0.0-20180604210613-5a2b9fab83ff // indirect
@@ -28,21 +28,18 @@ require (
 	github.com/onsi/gomega v1.4.1 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/patrickmn/go-cache v0.0.0-20170722040110-a3647f8e31d7
-	github.com/pkg/errors v0.0.0-20160929014801-645ef00459ed
+	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v0.0.0-20160817154824-c5b7fccd2042
 	github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5 // indirect
 	github.com/prometheus/common v0.0.0-20180518154759-7600349dcfe1 // indirect
 	github.com/prometheus/procfs v0.0.0-20180528183257-fe93d378a6b0 // indirect
-	github.com/sirupsen/logrus v0.0.0-20180311225137-c155da19408a // indirect
 	github.com/smartystreets/assertions v0.0.0-20180803164922-886ec427f6b9 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20180222194500-ef6db91d284a // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/youzan/go-nsq v0.0.0-20180306073406-048121fec907
-	golang.org/x/crypto v0.0.0-20180527072434-ab813273cd59 // indirect
 	golang.org/x/net v0.0.0-20180524181706-dfa909b99c79
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
-	golang.org/x/sys v0.0.0-20180525142821-c11f84a56e43 // indirect
 	golang.org/x/text v0.0.0-20171214130843-f21a4dfb5e38 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
