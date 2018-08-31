@@ -14,10 +14,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/hex"
 	"flag"
-	"net"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -90,7 +87,7 @@ func parseCfg() *monitor.Cfg {
 	}
 
 	var mac string
-	if mac = getNicMAC(); len(mac) == 0 {
+	if mac = GetNicMAC(); len(mac) == 0 {
 		log.Fatalf("failed to determine MAC")
 	} else {
 		log.Infof("MAC: %s", mac)
@@ -114,31 +111,4 @@ func parseCfg() *monitor.Cfg {
 	cfg.RetriesPerServer = *retriesPerServer
 
 	return cfg
-}
-
-// Join MAC of NICs on which an non-loopback IPv4 address is alive.
-func getNicMAC() (mac string) {
-	var macs [][]byte
-	// get all the system's or local machine's network interfaces
-	interfaces, _ := net.Interfaces()
-	for _, interf := range interfaces {
-		if addrs, err := interf.Addrs(); err == nil {
-			// Nil slice: its len is zero, and it's file to append.
-			var currentIP []string
-			for _, addr := range addrs {
-				// check the address type and if it is not a loopback the display it
-				// = GET LOCAL IP ADDRESS
-				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-					if ipnet.IP.To4() != nil {
-						currentIP = append(currentIP, ipnet.IP.String())
-					}
-				}
-			}
-			if len(currentIP) != 0 {
-				macs = append(macs, interf.HardwareAddr)
-			}
-		}
-	}
-	mac = hex.EncodeToString(bytes.Join(macs, []byte{}))
-	return
 }
