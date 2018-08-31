@@ -164,7 +164,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	}
 	t0 := time.Now()
 	var ntotal int
-	if ntotal, err = this.vdb.Search(nq, xq, distances, xids); err != nil {
+	if ntotal, err = this.vdb.Search(xq, distances, xids); err != nil {
 		return
 	}
 	duration := time.Since(t0).Seconds()
@@ -196,7 +196,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	log.Debugf("vectodb search result: hit %d, miss %d, ntotal %d, distances %v", len(extXids), len(newXids), ntotal, distances)
 	if newXb != nil {
 		t0 := time.Now()
-		if err = this.vdb.AddWithIds(len(newXids), newXb, newXids); err != nil {
+		if err = this.vdb.AddWithIds(newXb, newXids); err != nil {
 			return
 		}
 		duration := time.Since(t0).Seconds()
@@ -204,7 +204,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 	}
 	if extXb != nil {
 		t0 := time.Now()
-		if err = this.vdb.UpdateWithIds(len(extXids), extXb, extXids); err != nil {
+		if err = this.vdb.UpdateWithIds(extXb, extXids); err != nil {
 			return
 		}
 		duration := time.Since(t0).Seconds()
