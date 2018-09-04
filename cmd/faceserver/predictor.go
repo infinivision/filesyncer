@@ -57,7 +57,7 @@ func (this *Predictor) Serve(ctx context.Context) {
 						continue
 					}
 					log.Debugf("sent vecMsg fom image (length %d)", len(img.Img))
-					this.vecCh <- VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, Img: img.Img, Vec: pr.Vec}
+					this.vecCh <- VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
 				}
 			}
 

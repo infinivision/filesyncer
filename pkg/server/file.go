@@ -88,7 +88,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 					times)
 			}
 
-			code := f.complete(req)
+			objID, code := f.complete(req)
 			if code != pb.CodeOSSError {
 				if mgr.imgCh != nil {
 					var shop uint64
@@ -107,7 +107,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 							err = errors.Wrap(err, "")
 							log.Errorf("%+v", err)
 						} else {
-							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, Img: img}
+							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, ObjID: objID, Img: img}
 						}
 					}
 				}
@@ -183,15 +183,16 @@ func (f *file) append(req *pb.UploadReq) pb.Code {
 	return pb.CodeSucc
 }
 
-func (f *file) complete(req *pb.UploadCompleteReq) pb.Code {
-	objID := uuid.NewID()
+func (f *file) complete(req *pb.UploadCompleteReq) (objID string, code pb.Code) {
+	objID = uuid.NewID()
 	f.readed = 0
 	err := objectStore.PutObject(bucketName, objID, f, f.meta.ContentLength)
 	if err != nil {
 		log.Errorf("file-%d: complete with oss errors: %+v",
 			req.ID,
 			err)
-		return pb.CodeOSSError
+		code = pb.CodeOSSError
+		return
 	}
 
 	log.Infof("file-%d: complete succ with object %s, size %d",
@@ -203,7 +204,8 @@ func (f *file) complete(req *pb.UploadCompleteReq) pb.Code {
 		// A 112*112*3 raw image is 38KB. The size will be reduced to about 1/10 with JPEG compression.
 		log.Warnf("file-%d: file size %d is much bigger than expected", req.ID, f.meta.ContentLength)
 	}
-	return pb.CodeSucc
+	code = pb.CodeSucc
+	return
 }
 
 func (f *file) Read(p []byte) (int, error) {

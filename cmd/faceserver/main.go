@@ -66,6 +66,7 @@ type VecMsg struct {
 	Shop     uint64
 	Position uint32
 	ModTime  int64
+	ObjID    string
 	Img      []byte
 	Vec      []float32
 }

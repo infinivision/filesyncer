@@ -211,7 +211,6 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 		this.updateDuration.Observe(duration)
 	}
 
-	//TODO: determine Age and IsMale
 	var found bool
 	for i := 0; i < nq; i++ {
 		strUid := fmt.Sprintf("%s", xids[i])
@@ -239,7 +238,7 @@ func (this *Identifier) doBatch(vecMsgs []VecMsg) (err error) {
 		if ag.Gender != 0 {
 			visit.IsMale = true
 		}
-		log.Debugf("visit: %+v", visit)
+		log.Infof("objID: %+v, visit: %+v", vecMsgs[i].ObjID, visit)
 		this.visitCh <- visit
 		return
 	}
