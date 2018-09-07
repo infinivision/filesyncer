@@ -107,6 +107,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 							err = errors.Wrap(err, "")
 							log.Errorf("%+v", err)
 						} else {
+							log.Infof("got an image from shop %v, mac %v, camera %v", shop, mac, f.meta.Camera)
 							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, ObjID: objID, Img: img}
 						}
 					}
