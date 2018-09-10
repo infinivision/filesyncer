@@ -31,7 +31,6 @@ type Monitor struct {
 	readyC               chan string
 	completeC            chan *sync.WaitGroup
 	completeWG           *sync.WaitGroup
-	handShakeSent        bool
 
 	limiter *rate.Limiter
 }

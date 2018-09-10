@@ -6,9 +6,7 @@ import (
 
 	"github.com/fagongzi/goetty"
 	"github.com/fagongzi/log"
-	"github.com/infinivision/filesyncer/pkg/codec"
 	"github.com/infinivision/filesyncer/pkg/pb"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -20,7 +18,7 @@ var (
 			Subsystem: "faceserver",
 			Name:      "term_heartbeat",
 			Help:      "terminal hearbeat count",
-		}, []string{"shop", "mac"})
+		}, []string{"mac"})
 	termFilesizeHistogramVec = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "mcd",
@@ -28,7 +26,7 @@ var (
 			Name:      fmt.Sprintf("terminal_filesize"),
 			Help:      "terminal filesize distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 10240, 100), //100 buckets, each is 10K.
-		}, []string{"shop", "mac"})
+		}, []string{"mac"})
 	termMetricOnce sync.Once
 )
 
@@ -42,9 +40,6 @@ type session struct {
 	id   int64
 	fid  int32
 	conn goetty.IOSession
-
-	shop string
-	mac  string
 }
 
 func newSession(conn goetty.IOSession) *session {
@@ -63,10 +58,8 @@ func (s *session) close() {
 }
 
 func (s *session) onReq(msg interface{}) error {
-	if req, ok := msg.(*pb.Handshake); ok {
-		return s.handshake(req)
-	} else if req, ok := msg.(*pb.InitUploadReq); ok {
-		termFilesizeHistogramVec.WithLabelValues(s.shop, s.mac).Observe(float64(req.ContentLength))
+	if req, ok := msg.(*pb.InitUploadReq); ok {
+		termFilesizeHistogramVec.WithLabelValues(req.Mac).Observe(float64(req.ContentLength))
 		s.initUpload(req)
 	} else if req, ok := msg.(*pb.UploadReq); ok {
 		s.upload(req)
@@ -74,28 +67,11 @@ func (s *session) onReq(msg interface{}) error {
 		s.uploadContinue(req)
 	} else if req, ok := msg.(*pb.UploadCompleteReq); ok {
 		s.uploadComplete(req)
-	} else if msg == codec.HB {
-		termHeartbeatCountVec.WithLabelValues(s.shop, s.mac).Inc()
+	} else if req, ok := msg.(*pb.Heartbeat); ok {
+		termHeartbeatCountVec.WithLabelValues(req.Mac).Inc()
 		s.doRsp(msg)
 	}
 	return nil
-}
-
-func (s *session) handshake(req *pb.Handshake) (err error) {
-	var shop uint64
-	var found bool
-	log.Infof("got handshake from mac %v", req.Mac)
-	if shop, found, err = fileMgr.cmdb.GetShop(req.Mac); err != nil {
-		return
-	} else if !found {
-		err = errors.Errorf("cannot determine shop id for mac %s", req.Mac)
-		return
-	}
-	s.shop = fmt.Sprintf("%d", shop)
-	s.mac = req.Mac
-	log.Infof("determined mac %v is at shop %v", s.mac, s.shop)
-	s.doRsp(&pb.HandshakeRsp{})
-	return
 }
 
 func (s *session) initUpload(req *pb.InitUploadReq) {
@@ -134,7 +110,7 @@ func (s *session) uploadContinue(req *pb.UploadContinue) {
 func (s *session) uploadComplete(req *pb.UploadCompleteReq) {
 	s.doRsp(&pb.UploadCompleteRsp{
 		ID:   req.ID,
-		Code: fileMgr.completeFile(req, s.mac),
+		Code: fileMgr.completeFile(req),
 	})
 }
 

@@ -73,7 +73,7 @@ func (mgr *fileManager) continueUpload(id uint64) (bool, int32) {
 	return false, 0
 }
 
-func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.Code {
+func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 	fid := req.ID
 
 	mgr.RLock()
@@ -95,10 +95,10 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 					var position uint32
 					var found bool
 					var err error
-					if shop, position, found, err = mgr.cmdb.GetPosition(mac, f.meta.Camera); err != nil {
-						log.Warnf("GetPosition(%s, %s) failed with error %+v", mac, f.meta.Camera, err)
+					if shop, position, found, err = mgr.cmdb.GetPosition(f.meta.Mac, f.meta.Camera); err != nil {
+						log.Warnf("GetPosition(%s, %s) failed with error %+v", f.meta.Mac, f.meta.Camera, err)
 					} else if !found {
-						log.Warnf("GetPosition(%s, %s) didn't find", mac, f.meta.Camera)
+						log.Warnf("GetPosition(%s, %s) didn't find", f.meta.Mac, f.meta.Camera)
 					} else {
 						var img []byte
 						var err error
@@ -107,7 +107,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq, mac string) pb.C
 							err = errors.Wrap(err, "")
 							log.Errorf("%+v", err)
 						} else {
-							log.Infof("got an image from shop %v, mac %v, camera %v", shop, mac, f.meta.Camera)
+							log.Infof("got an image from shop %v, mac %v, camera %v", shop, f.meta.Mac, f.meta.Camera)
 							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, ObjID: objID, Img: img}
 						}
 					}

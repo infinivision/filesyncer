@@ -20,22 +20,17 @@ enum Code {
 
 enum Cmd {
     CmdHB                = 0;
-    CmdHandshake         = 1;
-    CmdHandshakeRsp      = 2;
-    CmdUploadInit        = 3;
-    CmdUploadInitRsp     = 4;
-    CmdUpload            = 5;
-    CmdUploadRsp         = 6;
-    CmdUploadComplete    = 7;
-    CmdUploadCompleteRsp = 8;
-    CmdUploadContinue    = 9;
+    CmdUploadInit        = 1;
+    CmdUploadInitRsp     = 2;
+    CmdUpload            = 3;
+    CmdUploadRsp         = 4;
+    CmdUploadComplete    = 5;
+    CmdUploadCompleteRsp = 6;
+    CmdUploadContinue    = 7;
 }
 
-message Handshake {
-    optional string mac   = 1 [(gogoproto.nullable) = false];
-}
-
-message HandshakeRsp {
+message Heartbeat {
+    optional string mac           = 1 [(gogoproto.nullable) = false];
 }
 
 message InitUploadReq {
@@ -45,6 +40,7 @@ message InitUploadReq {
     optional int32  chunkCount    = 4 [(gogoproto.nullable) = false];
     optional int64  modTime       = 5 [(gogoproto.nullable) = false];
     optional string camera        = 6 [(gogoproto.nullable) = false];
+    optional string mac           = 7 [(gogoproto.nullable) = false];
 }
 
 message InitUploadRsp {

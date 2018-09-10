@@ -11,10 +11,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (m *Monitor) handleHandshakeRsp(msg *pb.HandshakeRsp) {
-	log.Infof("got HandshakeRsp %+v", msg)
-}
-
 func (m *Monitor) inProcessing(file string) bool {
 	inProcessing := m.checkExists(m.prepares, file)
 	if !inProcessing {
@@ -83,6 +79,7 @@ func (m *Monitor) handlePrepare(file string) {
 			ChunkCount:    int32(cnt),
 			ModTime:       info.ModTime().Unix(),
 			Camera:        filepath.Base(filepath.Dir(file)),
+			Mac:           m.cfg.ID,
 		},
 		step: prepare,
 		to:   m.nextAvailable(),

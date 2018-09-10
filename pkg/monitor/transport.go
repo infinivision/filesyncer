@@ -19,8 +19,12 @@ func (m *Monitor) connFactory(addr string) goetty.IOSession {
 				}
 			}()
 
-			log.Debugf("net: sent HB to %s", addr)
-			conn.WriteAndFlush(codec.HB)
+			hb := pb.Heartbeat{
+				Mac: m.cfg.ID,
+			}
+
+			log.Debugf("net: sent HB %+v to %s", hb, addr)
+			conn.WriteAndFlush(&hb)
 		}, m.tw),
 		goetty.WithClientMiddleware(goetty.NewSyncProtocolClientMiddleware(codec.FileDecoder, codec.FileEncoder, m.sendRaw, 3)))
 }
@@ -62,9 +66,7 @@ func (m *Monitor) startReadLoop(addr string, conn goetty.IOSession) {
 			msg,
 			msg)
 
-		if value, ok := msg.(*pb.HandshakeRsp); ok {
-			m.handleHandshakeRsp(value)
-		} else if value, ok := msg.(*pb.InitUploadRsp); ok {
+		if value, ok := msg.(*pb.InitUploadRsp); ok {
 			m.handleInitUploadRsp(value)
 		} else if value, ok := msg.(*pb.UploadRsp); ok {
 			m.handleUploadRsp(value)
@@ -81,17 +83,6 @@ func (m *Monitor) doSend(to string, msg interface{}) error {
 			to,
 			err)
 		return err
-	}
-
-	if !m.handShakeSent {
-		m.handShakeSent = true
-		handshake := &pb.Handshake{Mac: m.cfg.ID}
-		if err = m.doSend(to, handshake); err != nil {
-			log.Errorf("net: %s failed to send handshake, errors:%+v",
-				to,
-				err)
-			return err
-		}
 	}
 
 	err = conn.WriteAndFlush(msg)
