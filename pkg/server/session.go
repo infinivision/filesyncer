@@ -84,6 +84,7 @@ func (s *session) onReq(msg interface{}) error {
 func (s *session) handshake(req *pb.Handshake) (err error) {
 	var shop uint64
 	var found bool
+	log.Infof("got handshake from mac %v", req.Mac)
 	if shop, found, err = fileMgr.cmdb.GetShop(req.Mac); err != nil {
 		return
 	} else if !found {
@@ -92,6 +93,7 @@ func (s *session) handshake(req *pb.Handshake) (err error) {
 	}
 	s.shop = fmt.Sprintf("%d", shop)
 	s.mac = req.Mac
+	log.Infof("determined mac %v is at shop %v", s.mac, s.shop)
 	s.doRsp(&pb.HandshakeRsp{})
 	return
 }
