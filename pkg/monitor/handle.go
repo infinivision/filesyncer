@@ -165,7 +165,8 @@ func (m *Monitor) sendInit(msg *pb.InitUploadReq) {
 		stat.close(false)
 		m.prepares.Delete(msg.Seq)
 
-		// retry and rechoose a server immediate
+		// retry after a while
+		time.Sleep(5 * time.Second)
 		m.addFile(stat.file)
 		return
 	}
