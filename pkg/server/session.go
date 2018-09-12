@@ -54,6 +54,9 @@ var (
 func initMetricsForTerms() {
 	prometheus.MustRegister(termHeartbeatCountVec)
 	prometheus.MustRegister(termFilesizeHistogramVec)
+	prometheus.MustRegister(termCpuPercentGaugeVec)
+	prometheus.MustRegister(termMemPercentGaugeVec)
+	prometheus.MustRegister(termDiskPercentGaugeVec)
 }
 
 type session struct {
