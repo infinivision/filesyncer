@@ -27,6 +27,7 @@ enum Cmd {
     CmdUploadComplete    = 5;
     CmdUploadCompleteRsp = 6;
     CmdUploadContinue    = 7;
+    CmdSysUsage          = 8;
 }
 
 message Heartbeat {
@@ -72,4 +73,14 @@ message UploadCompleteRsp {
 
 message UploadContinue {
     optional uint64 id = 1 [(gogoproto.nullable) = false, (gogoproto.customname) = "ID"];
+}
+
+message SysUsage {
+    optional string mac       = 1 [(gogoproto.nullable) = false];
+    optional uint64 CpuTotal  = 2 [(gogoproto.nullable) = false];
+    optional uint64 MemTotal  = 3 [(gogoproto.nullable) = false];
+    optional uint64 DiskTotal  = 4 [(gogoproto.nullable) = false];
+    optional uint32 CpuUsedPercent  = 5 [(gogoproto.nullable) = false];
+    optional uint32 MemUsedPercent  = 6 [(gogoproto.nullable) = false];
+    optional uint32 DiskUsedPercent  = 7 [(gogoproto.nullable) = false];
 }

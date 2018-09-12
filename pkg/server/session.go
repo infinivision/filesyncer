@@ -27,6 +27,27 @@ var (
 			Help:      "terminal filesize distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 10240, 100), //100 buckets, each is 10K.
 		}, []string{"mac"})
+	termCpuPercentGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "term_cpu_used_percent",
+			Help:      "terminal CPU used percent",
+		}, []string{"mac"})
+	termMemPercentGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "term_mem_used_percent",
+			Help:      "terminal memory used percent",
+		}, []string{"mac"})
+	termDiskPercentGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "term_disk_used_percent",
+			Help:      "terminal disk used percent",
+		}, []string{"mac"})
 	termMetricOnce sync.Once
 )
 
@@ -70,6 +91,10 @@ func (s *session) onReq(msg interface{}) error {
 	} else if req, ok := msg.(*pb.Heartbeat); ok {
 		termHeartbeatCountVec.WithLabelValues(req.Mac).Inc()
 		s.doRsp(msg)
+	} else if req, ok := msg.(*pb.SysUsage); ok {
+		termCpuPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.CpuUsedPercent))
+		termMemPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.MemUsedPercent))
+		termDiskPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.DiskUsedPercent))
 	}
 	return nil
 }

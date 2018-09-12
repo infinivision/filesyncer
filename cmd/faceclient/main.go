@@ -42,6 +42,7 @@ var (
 	timeoutRead      = flag.Int("timeout-read", 30, "Timeout(sec): timeout read from server.")
 	timeoutWrite     = flag.Int("timeout-write", 15, "Timeout(sec): timeout write heartbeat msg to server.")
 	timeoutConnect   = flag.Int("timeout-connect", 10, "Timeout(sec): timeout connect to server.")
+	usageInterval    = flag.Int("usage-interval", 60, "Interval(sec): report system usage to server.")
 	showVer          = flag.Bool("version", false, "Show version and quit.")
 )
 
@@ -109,6 +110,7 @@ func parseCfg() *monitor.Cfg {
 	cfg.DiableRetry = *disableRetry
 	cfg.RetriesInterval = time.Second * time.Duration(*retriesInterval)
 	cfg.RetriesPerServer = *retriesPerServer
+	cfg.UsageInterval = time.Second * time.Duration(*usageInterval)
 
 	return cfg
 }

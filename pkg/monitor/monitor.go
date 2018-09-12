@@ -51,6 +51,7 @@ func (m *Monitor) Start() {
 	m.startPrepareTask()
 	m.startWaittingCompleteTask()
 	m.triggerFetch()
+	m.startReportSysUsageTask()
 }
 
 // Stop stop monitor the target dir
@@ -126,4 +127,22 @@ func (m *Monitor) getUploadingStat(id uint64) *status {
 	}
 
 	return value.(*status)
+}
+
+func (m *Monitor) startReportSysUsageTask() {
+	m.runner.RunCancelableTask(func(ctx context.Context) {
+		log.Infof("report-SysUsage: started")
+		ticker := time.NewTicker(m.cfg.UsageInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Infof("task-refresh: stopped")
+				return
+			case <-ticker.C:
+				m.reportSysUsage()
+			}
+		}
+	})
 }

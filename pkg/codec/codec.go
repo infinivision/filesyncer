@@ -48,6 +48,8 @@ func (codec *codec) Decode(in *goetty.ByteBuf) (bool, interface{}, error) {
 		value = &pb.UploadContinue{}
 	case pb.CmdHB:
 		value = &pb.Heartbeat{}
+	case pb.CmdSysUsage:
+		value = &pb.SysUsage{}
 	}
 
 	if value != nil {
@@ -99,6 +101,10 @@ func (codec *codec) Encode(data interface{}, out *goetty.ByteBuf) error {
 		value = msg
 		size = msg.Size()
 		cmd = byte(pb.CmdHB)
+	} else if msg, ok := data.(*pb.SysUsage); ok {
+		value = msg
+		size = msg.Size()
+		cmd = byte(pb.CmdSysUsage)
 	}
 
 	if value != nil {

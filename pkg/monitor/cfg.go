@@ -24,6 +24,7 @@ type Cfg struct {
 	DiableRetry      bool
 	RetriesInterval  time.Duration
 	RetriesPerServer int
+	UsageInterval    time.Duration
 }
 
 // LastFileName returns file name that store the process info
