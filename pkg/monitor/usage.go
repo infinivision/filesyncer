@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 
 	"github.com/infinivision/filesyncer/pkg/pb"
@@ -51,6 +52,13 @@ func (m *Monitor) getSysUsage() (usage *pb.SysUsage, err2 error) {
 	} else {
 		usage.DiskTotal = du.Total                     //root partition size in bytes
 		usage.DiskUsedPercent = uint32(du.UsedPercent) //only root partition
+	}
+
+	if avg, err := load.Avg(); err != nil {
+		err2 = errors.Wrapf(err, "")
+		return
+	} else {
+		usage.LoadAverage1 = avg.Load1 //load average 1 minute
 	}
 	return
 }

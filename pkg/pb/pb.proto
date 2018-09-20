@@ -82,5 +82,6 @@ message SysUsage {
     optional uint64 DiskTotal  = 4 [(gogoproto.nullable) = false];
     optional uint32 CpuUsedPercent  = 5 [(gogoproto.nullable) = false];
     optional uint32 MemUsedPercent  = 6 [(gogoproto.nullable) = false];
-    optional uint32 DiskUsedPercent  = 7 [(gogoproto.nullable) = false];
+    optional uint32 DiskUsedPercent = 7 [(gogoproto.nullable) = false];
+    optional double LoadAverage1    = 8 [(gogoproto.nullable) = false];
 }
