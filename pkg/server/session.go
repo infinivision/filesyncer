@@ -48,6 +48,13 @@ var (
 			Name:      "term_disk_used_percent",
 			Help:      "terminal disk used percent",
 		}, []string{"mac"})
+	termLoadAverage1GaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "term_load_average_1",
+			Help:      "terminal load average 1 minute",
+		}, []string{"mac"})
 	termMetricOnce sync.Once
 )
 
@@ -57,6 +64,7 @@ func initMetricsForTerms() {
 	prometheus.MustRegister(termCpuPercentGaugeVec)
 	prometheus.MustRegister(termMemPercentGaugeVec)
 	prometheus.MustRegister(termDiskPercentGaugeVec)
+	prometheus.MustRegister(termLoadAverage1GaugeVec)
 }
 
 type session struct {
@@ -98,6 +106,7 @@ func (s *session) onReq(msg interface{}) error {
 		termCpuPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.CpuUsedPercent))
 		termMemPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.MemUsedPercent))
 		termDiskPercentGaugeVec.WithLabelValues(req.Mac).Set(float64(req.DiskUsedPercent))
+		termLoadAverage1GaugeVec.WithLabelValues(req.Mac).Set(req.LoadAverage1)
 	}
 	return nil
 }
