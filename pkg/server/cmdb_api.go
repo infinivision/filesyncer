@@ -108,6 +108,9 @@ func (ca *CmdbApi) GetPosition(mac, cameraIp string) (shop uint64, pos uint32, f
 		}
 
 	}
+	if !found {
+		log.Debugf("terms %+v", terms)
+	}
 	return
 }
 
