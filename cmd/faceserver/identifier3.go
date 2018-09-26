@@ -149,11 +149,11 @@ func (this *Identifier3) getXidsLen(uid int64) (xl int64, err error) {
 }
 
 func (this *Identifier3) assoicateUidXid(uid, xid int64) (err error) {
-	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 64), 1*time.Second).Err(); err != nil {
+	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 10), 1*time.Second).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
-	if err = this.rcli.LPush(fmt.Sprintf("uid_%v", uid), strconv.FormatInt(xid, 64)).Err(); err != nil {
+	if err = this.rcli.LPush(fmt.Sprintf("uid_%v", uid), strconv.FormatInt(xid, 10)).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
@@ -275,7 +275,7 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 		if ag.Gender != 0 {
 			visit.IsMale = true
 		}
-		log.Infof("objID: %+v, visit: %+v", vecMsgs[i].ObjID, visit)
+		log.Infof("objID: %+v, visit3: %+v", vecMsgs[i].ObjID, visit)
 		this.visitCh <- visit
 		return
 	}
