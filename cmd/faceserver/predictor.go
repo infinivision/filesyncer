@@ -14,6 +14,7 @@ type Predictor struct {
 	servURL     string
 	imgCh       <-chan server.ImgMsg
 	vecCh       chan<- VecMsg
+	vecCh3      chan<- VecMsg
 	parallel    int
 	hc          *http.Client
 	rpcDuration prometheus.Histogram
@@ -23,11 +24,12 @@ type PredResp struct {
 	Vec []float32 `json:"prediction"`
 }
 
-func NewPredictor(servURL string, imgCh <-chan server.ImgMsg, vecCh chan<- VecMsg, parallel int) (pred *Predictor) {
+func NewPredictor(servURL string, imgCh <-chan server.ImgMsg, vecCh, vecCh3 chan<- VecMsg, parallel int) (pred *Predictor) {
 	pred = &Predictor{
 		servURL:  servURL,
 		imgCh:    imgCh,
 		vecCh:    vecCh,
+		vecCh3:   vecCh3,
 		hc:       &http.Client{Timeout: time.Second * 10},
 		parallel: parallel,
 		rpcDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
@@ -58,6 +60,7 @@ func (this *Predictor) Serve(ctx context.Context) {
 					}
 					log.Debugf("sent vecMsg fom image (length %d)", len(img.Img))
 					this.vecCh <- VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
+					this.vecCh3 <- VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
 				}
 			}
 

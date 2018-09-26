@@ -51,10 +51,16 @@ var (
 	topic          = flag.String("topic", "visits", "NSQ topic.")
 
 	identifyBatchSize = flag.Int("identify-batch-size", 200, "Batch size of search vectodb.")
-	identifyDisThr    = flag.Float64("identify-distance-threshold", 0.05, "Distance threshold of search vectodb.")
+	identifyDisThr    = flag.Float64("identify-distance-threshold", 0.4, "Distance threshold of search vectodb.")
+	identifyDisThr1   = flag.Float64("identify-distance-threshold1", 0.4, "Distance threshold of search vectodb.")
+	identifyDisThr2   = flag.Float64("identify-distance-threshold2", 0.6, "Distance threshold of merging new vector.")
+	identifyDisThr3   = flag.Float64("identify-distance-threshold3", 0.8, "Distance threshold of discarding new vector.")
 	identifyFlatThr   = flag.Int("identify-flat-threshold", 1000, "Allowed max flat size when udpate vectodb index.")
 	identifyWorkDir   = flag.String("identify-work-dir", "/data", "Work directory of vectodb.")
+	identifyWorkDir3  = flag.String("identify-work-dir3", "/data3", "Work directory of vectodb.")
 	identifyDim       = flag.Int("identify-dim", 512, "Dimension of vectors inside vectodb.")
+
+	redisAddr = flag.String("redis-addr", "127.0.0.1:6379", "Addr: redis address")
 
 	eurekaAddr = flag.String("eureka-addr", "http://127.0.0.1:8761/eureka", "eureka server address list, seperated by comma.")
 	eurekaApp  = flag.String("eureka-app", "iot-backend", "CMDB service name which been registered with eureka.")
@@ -105,13 +111,23 @@ func main() {
 	imgCh := make(chan server.ImgMsg, 10000)
 	vecCh := make(chan VecMsg, 10000)
 	visitCh := make(chan *Visit, 10000)
+	vecCh3 := make(chan VecMsg, 10000)
+	visitCh3 := make(chan *Visit, 10000)
 	s := server.NewFileServer(parseCfg(), imgCh)
-	pred := NewPredictor(*predictServURL, imgCh, vecCh, 3)
+	pred := NewPredictor(*predictServURL, imgCh, vecCh, vecCh3, 3)
 
 	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim, *ageServURL)
+
+	iden3 := NewIdentifier3(vecCh3, visitCh3, 3, *identifyBatchSize, float32(*identifyDisThr1), float32(*identifyDisThr2), float32(*identifyDisThr3), *identifyFlatThr, *identifyWorkDir3, *identifyDim, *ageServURL, *redisAddr)
+
 	recd, err := NewRecorder(*nsqlookupdURLs, *topic, visitCh)
 	if err != nil {
-		log.Fatalf("+v", err)
+		log.Fatalf("%+v", err)
+	}
+
+	recd3, err := NewRecorder(*nsqlookupdURLs, *topic+"3", visitCh3)
+	if err != nil {
+		log.Fatalf("%+v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -119,6 +135,8 @@ func main() {
 	go pred.Serve(ctx)
 	go iden.Serve(ctx)
 	go recd.Serve(ctx)
+	go iden3.Serve(ctx)
+	go recd3.Serve(ctx)
 
 	for {
 		sig := <-sc
