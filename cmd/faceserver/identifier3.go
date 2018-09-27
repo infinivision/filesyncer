@@ -149,7 +149,7 @@ func (this *Identifier3) getXidsLen(uid int64) (xl int64, err error) {
 }
 
 func (this *Identifier3) assoicateUidXid(uid, xid int64) (err error) {
-	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 10), 1*time.Second).Err(); err != nil {
+	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 10), 0).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
