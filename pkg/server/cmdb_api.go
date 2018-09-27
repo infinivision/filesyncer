@@ -128,8 +128,12 @@ func (ca *CmdbApi) getTerm(mac string) (terms *TermsRespBody, found bool, err er
 		return
 	}
 	req, err := http.NewRequest("GET", servURL, nil)
-	req.URL.Query().Set("deviceId", mac)
+	// https://stackoverflow.com/questions/30652577/go-doing-a-get-request-and-building-the-querystring/30657518
+	q := req.URL.Query()
+	q.Set("deviceId", mac)
+	req.URL.RawQuery = q.Encode()
 	req.Header.Set("__no_auth__", "foo")
+	log.Debugf("request url: %+v", req.URL.String())
 	var resp *http.Response
 	var respBody []byte
 	if resp, err = ca.hc.Do(req); err != nil {
@@ -148,7 +152,13 @@ func (ca *CmdbApi) getTerm(mac string) (terms *TermsRespBody, found bool, err er
 		return
 	}
 	if terms.Data.Total != "0" {
-		found = true
+		if terms.Data.Total != "1" {
+			log.Errorf("there are multiple terminals in respBody %+v", string(respBody))
+		} else if terms.Data.Items[0].DeviceId != mac {
+			log.Errorf("incorrect MAC, want %v, have %v, respBody %+v", mac, terms.Data.Items[0].DeviceId, string(respBody))
+		} else {
+			found = true
+		}
 	}
 	log.Debugf("respBody parsed as: %+v", terms)
 	return
