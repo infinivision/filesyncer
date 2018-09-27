@@ -105,7 +105,7 @@ func (this *Identifier3) Serve(ctx context.Context) {
 }
 
 func (this *Identifier3) builderLoop(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	var err error
 	for {
 		select {
@@ -236,7 +236,7 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 			}
 		}
 	}
-	log.Debugf("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, ntotal %d, distances %v", cnt1, cnt2, cnt3, cnt4, ntotal, distances)
+	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, ntotal %d, distances %v", cnt1, cnt2, cnt3, cnt4, ntotal, distances)
 	if newXb != nil {
 		if err = this.vdb.AddWithIds(newXb, newXids); err != nil {
 			return
