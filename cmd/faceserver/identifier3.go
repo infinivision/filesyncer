@@ -187,52 +187,42 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 	var newXids []int64
 	var extXb []float32
 	var extXids []int64
-	if ntotal == 0 {
-		newXb = xq
-		for i := 0; i < nq; i++ {
-			newXids = append(newXids, this.allocateXid())
+	for i := 0; i < nq; i++ {
+		if xids[i] == int64(-1) {
+			cnt1++
+			newXid = this.allocateXid()
 			if uids[i], err = this.allocateUid(); err != nil {
 				return
 			}
-		}
-	} else {
-		for i := 0; i < nq; i++ {
-			if xids[i] == int64(-1) {
-				cnt1++
-				newXid = this.allocateXid()
-				if uids[i], err = this.allocateUid(); err != nil {
+			if err = this.assoicateUidXid(uids[i], newXid); err != nil {
+				return
+			}
+			newXb = append(newXb, vecMsgs[i].Vec...)
+			newXids = append(newXids, newXid)
+		} else {
+			if uids[i], err = this.getUid(xids[i]); err != nil {
+				return
+			}
+			if vectodb.VectodbCompareDistance(metricType, this.distThr2, distances[i]) {
+				cnt2++
+				var xl int64
+				if xl, err = this.getXidsLen(uids[i]); err != nil {
 					return
 				}
-				if err = this.assoicateUidXid(uids[i], newXid); err != nil {
-					return
-				}
-				newXb = append(newXb, vecMsgs[i].Vec...)
-				newXids = append(newXids, newXid)
-			} else {
-				if uids[i], err = this.getUid(xids[i]); err != nil {
-					return
-				}
-				if vectodb.VectodbCompareDistance(metricType, this.distThr2, distances[i]) {
-					cnt2++
-					var xl int64
-					if xl, err = this.getXidsLen(uids[i]); err != nil {
+				if xl < 8 {
+					newXid = this.allocateXid()
+					if err = this.assoicateUidXid(uids[i], newXid); err != nil {
 						return
 					}
-					if xl < 8 {
-						newXid = this.allocateXid()
-						if err = this.assoicateUidXid(uids[i], newXid); err != nil {
-							return
-						}
-						newXb = append(newXb, vecMsgs[i].Vec...)
-						newXids = append(newXids, newXid)
-					}
-				} else if vectodb.VectodbCompareDistance(metricType, this.distThr3, distances[i]) {
-					cnt3++
-				} else {
-					cnt4++
-					extXb = append(extXb, vecMsgs[i].Vec...)
-					extXids = append(extXids, xids[i])
+					newXb = append(newXb, vecMsgs[i].Vec...)
+					newXids = append(newXids, newXid)
 				}
+			} else if vectodb.VectodbCompareDistance(metricType, this.distThr3, distances[i]) {
+				cnt3++
+			} else {
+				cnt4++
+				extXb = append(extXb, vecMsgs[i].Vec...)
+				extXids = append(extXids, xids[i])
 			}
 		}
 	}
