@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	strings "strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -16,12 +17,19 @@ import (
 	"github.com/infinivision/hyena/pkg/proxy"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
 	SIZEOF_FLOAT32 int = 4
 	ageCacheWindow int = 30 * 60 //cache age lookup result for 30 minutes
+)
+
+var (
+	idenOnce           sync.Once
+	idenSearchDuration prometheus.Histogram
+	idenAddDuration    prometheus.Histogram
+	idenUpdateDuration prometheus.Histogram
 )
 
 type AgeGender struct {
@@ -34,16 +42,11 @@ type AgePred struct {
 }
 
 type Identifier3 struct {
-	vecCh     <-chan VecMsg
-	visitCh   chan<- *Visit
-	parallel  int
-	batchSize int
-	distThr1  float32
-	distThr2  float32
-	distThr3  float32
-	flatThr   int
-	vdb       proxy.Proxy
-	h64       hash.Hash64
+	distThr2 float32
+	distThr3 float32
+	flatThr  int
+	vdb      proxy.Proxy
+	h64      hash.Hash64
 
 	ageServURL string
 	hc         *http.Client
@@ -51,15 +54,11 @@ type Identifier3 struct {
 	rcli       *redis.Client
 }
 
-func NewIdentifier3(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, batchSize int, distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageServURL, redisAddr string) (iden *Identifier3) {
+func NewIdentifier3(distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageServURL, redisAddr string) (iden *Identifier3) {
 	iden = &Identifier3{
-		vecCh:     vecCh,
-		visitCh:   visitCh,
-		parallel:  parallel,
-		batchSize: batchSize,
-		distThr2:  distThr2,
-		distThr3:  distThr3,
-		h64:       xxhash.New(),
+		distThr2: distThr2,
+		distThr3: distThr3,
+		h64:      xxhash.New(),
 
 		ageServURL: ageServURL,
 		hc:         &http.Client{Timeout: time.Second * 10},
@@ -81,39 +80,35 @@ func NewIdentifier3(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, ba
 		err = errors.Wrap(err, "")
 		log.Errorf("got error %+v", err)
 	}
-	return
-}
 
-func (this *Identifier3) Serve(ctx context.Context) {
-	for i := 0; i < this.parallel; i++ {
-		go func() {
-			ticker := time.NewTicker(100 * time.Millisecond)
-			vecMsgs := make([]VecMsg, 0)
-			var err error
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case vecMsg := <-this.vecCh:
-					log.Debugf("received vecMsg for image, length %d, vec %v", len(vecMsg.Img), vecMsg.Vec)
-					vecMsgs = append(vecMsgs, vecMsg)
-					if len(vecMsgs) >= this.batchSize {
-						if err = this.doBatch(vecMsgs); err != nil {
-							log.Errorf("%+v", err)
-						}
-						vecMsgs = nil
-					}
-				case <-ticker.C:
-					if len(vecMsgs) != 0 {
-						if err = this.doBatch(vecMsgs); err != nil {
-							log.Errorf("%+v", err)
-						}
-						vecMsgs = nil
-					}
-				}
-			}
-		}()
-	}
+	idenOnce.Do(func() {
+		idenSearchDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_search_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+		})
+		idenAddDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_add_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+		})
+		idenUpdateDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_update_duration_seconds",
+			Help:      "identify RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+		})
+
+		prometheus.MustRegister(idenSearchDuration)
+		prometheus.MustRegister(idenAddDuration)
+		prometheus.MustRegister(idenUpdateDuration)
+	})
+	return
 }
 
 func (this *Identifier3) allocateUid() (uid int64, err error) {
@@ -174,21 +169,17 @@ func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 	return
 }
 
-func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
-	//TODO: query distributed vectodb
-	nq := len(vecMsgs)
-	log.Debugf("(*Identifier).doBatch %d", nq)
-	xq := make([]float32, 0)
-	uids := make([]int64, nq)
-	for _, vecMsg := range vecMsgs {
-		xq = append(xq, vecMsg.Vec...)
-	}
-	var ntotal uint64
-	var distances []float32
-	var xids []int64
-	if ntotal, distances, xids, err = this.vdb.Search(xq); err != nil {
+func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
+	var uid int64
+	var db uint64
+	var distance float32
+	var xid int64
+	t0 := time.Now()
+	if db, distance, xid, err = this.vdb.Search(vecMsg.Vec); err != nil {
 		return
 	}
+	duration := time.Since(t0).Seconds()
+	idenSearchDuration.Observe(duration)
 
 	var cnt1, cnt2, cnt3, cnt4 int
 	var newXid int64
@@ -196,87 +187,85 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 	var newXids []int64
 	var extXb []float32
 	var extXids []int64
-	for i := 0; i < nq; i++ {
-		if xids[i] == int64(-1) {
-			cnt1++
-			newXid = this.allocateXid(vecMsgs[i].Vec)
-			if uids[i], err = this.allocateUid(); err != nil {
+	if xid == int64(-1) {
+		cnt1++
+		newXid = this.allocateXid(vecMsg.Vec)
+		if uid, err = this.allocateUid(); err != nil {
+			return
+		}
+		if err = this.assoicateUidXid(uid, newXid); err != nil {
+			return
+		}
+		newXb = append(newXb, vecMsg.Vec...)
+		newXids = append(newXids, newXid)
+	} else {
+		if uid, err = this.getUid(xid); err != nil {
+			return
+		}
+		if distance < this.distThr2 {
+			cnt2++
+			var xl int64
+			if xl, err = this.getXidsLen(uid); err != nil {
 				return
 			}
-			if err = this.assoicateUidXid(uids[i], newXid); err != nil {
-				return
-			}
-			newXb = append(newXb, vecMsgs[i].Vec...)
-			newXids = append(newXids, newXid)
-		} else {
-			if uids[i], err = this.getUid(xids[i]); err != nil {
-				return
-			}
-			if distances[i] < this.distThr2 {
-				cnt2++
-				var xl int64
-				if xl, err = this.getXidsLen(uids[i]); err != nil {
+			if xl < 8 {
+				newXid = this.allocateXid(vecMsg.Vec)
+				if err = this.assoicateUidXid(uid, newXid); err != nil {
 					return
 				}
-				if xl < 8 {
-					newXid = this.allocateXid(vecMsgs[i].Vec)
-					if err = this.assoicateUidXid(uids[i], newXid); err != nil {
-						return
-					}
-					newXb = append(newXb, vecMsgs[i].Vec...)
-					newXids = append(newXids, newXid)
-				}
-			} else if distances[i] < this.distThr3 {
-				cnt3++
-			} else {
-				cnt4++
-				extXb = append(extXb, vecMsgs[i].Vec...)
-				extXids = append(extXids, xids[i])
+				newXb = append(newXb, vecMsg.Vec...)
+				newXids = append(newXids, newXid)
 			}
+		} else if distance < this.distThr3 {
+			cnt3++
+		} else {
+			cnt4++
+			extXb = append(extXb, vecMsg.Vec...)
+			extXids = append(extXids, xid)
 		}
 	}
-	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, ntotal %d, distances %v", cnt1, cnt2, cnt3, cnt4, ntotal, distances)
+	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, distances %v", cnt1, cnt2, cnt3, cnt4, distance)
 	if newXb != nil {
+		t0 = time.Now()
 		if err = this.vdb.AddWithIds(newXb, newXids); err != nil {
 			return
 		}
+		duration = time.Since(t0).Seconds()
+		idenAddDuration.Observe(duration)
 	}
 	if extXb != nil {
+		t0 = time.Now()
 		if err = this.vdb.UpdateWithIds(uint64(len(extXids)), extXb, extXids); err != nil {
 			return
 		}
+		duration = time.Since(t0).Seconds()
+		idenUpdateDuration.Observe(duration)
 	}
 
 	var found bool
-	for i := 0; i < nq; i++ {
-		strUid := fmt.Sprintf("%s", uids[i])
-		var ag *AgeGender
-		var val interface{}
-		if val, found = this.ageCache.Get(strUid); found {
-			ag = val.(*AgeGender)
-		} else {
-			agePred := &AgePred{}
-			_, err = PostFile(this.hc, this.ageServURL, vecMsgs[i].Img, agePred)
-			if err != nil {
-				log.Errorf("%+v", err)
-				continue
-			}
-			ag = &agePred.Prediction
+	strUid := fmt.Sprintf("%s", uid)
+	var ag *AgeGender
+	var val interface{}
+	if val, found = this.ageCache.Get(strUid); found {
+		ag = val.(*AgeGender)
+	} else {
+		agePred := &AgePred{}
+		if _, err = PostFile(this.hc, this.ageServURL, vecMsg.Img, agePred); err != nil {
+			return
 		}
-		this.ageCache.SetDefault(strUid, ag)
-		visit := &Visit{
-			Uid:       uint64(uids[i]),
-			VisitTime: uint64(vecMsgs[i].ModTime),
-			Shop:      uint64(vecMsgs[i].Shop),
-			Position:  uint32(vecMsgs[i].Position),
-			Age:       uint32(ag.Age),
-		}
-		if ag.Gender != 0 {
-			visit.IsMale = true
-		}
-		log.Infof("objID: %+v, visit3: %+v", vecMsgs[i].ObjID, visit)
-		this.visitCh <- visit
-		return
+		ag = &agePred.Prediction
 	}
+	this.ageCache.SetDefault(strUid, ag)
+	visit = &Visit{
+		Uid:       uint64(uid),
+		VisitTime: uint64(vecMsg.ModTime),
+		Shop:      uint64(vecMsg.Shop),
+		Position:  uint32(vecMsg.Position),
+		Age:       uint32(ag.Age),
+	}
+	if ag.Gender != 0 {
+		visit.IsMale = true
+	}
+	log.Infof("objID: %+v, visit3: %+v", vecMsg.ObjID, visit)
 	return
 }

@@ -51,14 +51,8 @@ var (
 	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
 
 	identifyBatchSize = flag.Int("identify-batch-size", 200, "Batch size of search vectodb.")
-	identifyDisThr    = flag.Float64("identify-distance-threshold", 0.4, "Distance threshold of search vectodb.")
-	identifyDisThr1   = flag.Float64("identify-distance-threshold1", 0.4, "Distance threshold of search vectodb.")
 	identifyDisThr2   = flag.Float64("identify-distance-threshold2", 0.6, "Distance threshold of merging new vector.")
 	identifyDisThr3   = flag.Float64("identify-distance-threshold3", 0.8, "Distance threshold of discarding new vector.")
-	identifyFlatThr   = flag.Int("identify-flat-threshold", 1000, "Allowed max flat size when udpate vectodb index.")
-	identifyWorkDir   = flag.String("identify-work-dir", "/data", "Work directory of vectodb.")
-	identifyWorkDir3  = flag.String("identify-work-dir3", "/data3", "Work directory of vectodb.")
-	identifyDim       = flag.Int("identify-dim", 512, "Dimension of vectors inside vectodb.")
 
 	redisAddr = flag.String("redis-addr", "127.0.0.1:6379", "Addr: redis address")
 
@@ -109,17 +103,46 @@ func main() {
 		syscall.SIGQUIT)
 
 	imgCh := make(chan server.ImgMsg, 10000)
-	vecCh3 := make(chan VecMsg, 10000)
-	visitCh3 := make(chan *Visit, 10000)
-	s := server.NewFileServer(parseCfg(), imgCh)
-	pred := NewPredictor(*predictServURL, imgCh, vecCh3, 3)
-
-	iden3 := NewIdentifier3(vecCh3, visitCh3, 3, *identifyBatchSize, float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
-
 	ctx, cancel := context.WithCancel(context.Background())
+	s := server.NewFileServer(parseCfg())
 	go s.Start()
-	go pred.Serve(ctx)
-	go iden3.Serve(ctx)
+
+	for i := 0; i < 3; i++ {
+		go func() {
+			var err error
+			pred := NewPredictor(*predictServURL)
+			iden3 := NewIdentifier3(float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
+			var recorder Recorder
+			if recorder, err = NewRecorder("", ""); err != nil {
+				log.Errorf("got error: %+v", err)
+				return
+			}
+			var pr *PredResp
+			var vecMsg VecMsg
+			var visit *Visit
+			for {
+				select {
+				case <-ctx.Done():
+					log.Infof("image process goroutine exited")
+					return
+				case img := <-imgCh:
+					if pr, err = pred.Predictate(img); err != nil {
+						log.Errorf("got error: %+v", err)
+						continue
+					}
+					vecMsg = VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
+					if visit, err = iden3.Identify(vecMsg); err != nil {
+						log.Errorf("got error: %+v", err)
+						continue
+					}
+					if err = recorder.Recode(visit); err != nil {
+						log.Errorf("got error: %+v", err)
+						continue
+					}
+				}
+			}
+		}()
+	}
 
 	for {
 		sig := <-sc

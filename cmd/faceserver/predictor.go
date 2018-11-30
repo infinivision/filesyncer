@@ -2,75 +2,51 @@ package main
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
-	"github.com/fagongzi/log"
-	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/net/context"
+)
+
+var (
+	predOnce        sync.Once
+	predRpcDuration prometheus.Histogram
 )
 
 type Predictor struct {
-	servURL     string
-	imgCh       <-chan server.ImgMsg
-	vecCh3      chan<- VecMsg
-	parallel    int
-	hc          *http.Client
-	rpcDuration prometheus.Histogram
+	servURL string
+	hc      *http.Client
 }
 
 type PredResp struct {
 	Vec []float32 `json:"prediction"`
 }
 
-func NewPredictor(servURL string, imgCh <-chan server.ImgMsg, vecCh3 chan<- VecMsg, parallel int) (pred *Predictor) {
+func NewPredictor(servURL string) (pred *Predictor) {
 	pred = &Predictor{
-		servURL:  servURL,
-		imgCh:    imgCh,
-		vecCh3:   vecCh3,
-		hc:       &http.Client{Timeout: time.Second * 10},
-		parallel: parallel,
-		rpcDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
+		servURL: servURL,
+		hc:      &http.Client{Timeout: time.Second * 10},
+	}
+
+	predOnce.Do(func() {
+		predRpcDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace: "mcd",
 			Subsystem: "faceserver",
 			Name:      "predication_rpc_duration_seconds",
 			Help:      "predication RPC latency distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
-		}),
-	}
-	prometheus.MustRegister(pred.rpcDuration)
+		})
+		prometheus.MustRegister(predRpcDuration)
+	})
 	return
 }
 
-func (this *Predictor) Serve(ctx context.Context) {
-	for i := 0; i < this.parallel; i++ {
-		go func() {
-			var pr *PredResp
-			var err error
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case img := <-this.imgCh:
-					if pr, err = this.do(img.Img); err != nil {
-						log.Errorf("%+v", err)
-						continue
-					}
-					log.Debugf("sent vecMsg fom image (length %d)", len(img.Img))
-					this.vecCh3 <- VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
-				}
-			}
-
-		}()
-	}
-}
-
-func (this *Predictor) do(img []byte) (pr *PredResp, err error) {
+func (this *Predictor) Predictate(img []byte) (pr *PredResp, err error) {
 	pr = &PredResp{}
 	var duration time.Duration
 	if duration, err = PostFile(this.hc, this.servURL, img, pr); err != nil {
 		return
 	}
-	this.rpcDuration.Observe(duration.Seconds())
+	predRpcDuration.Observe(duration.Seconds())
 	return
 }
