@@ -2,19 +2,36 @@ package main
 
 import (
 	fmt "fmt"
+	"hash"
 	"net/http"
+	"reflect"
 	"strconv"
-	"sync/atomic"
+	strings "strings"
 	"time"
+	"unsafe"
 
+	"github.com/cespare/xxhash"
+	"github.com/fagongzi/log"
+	"github.com/go-redis/redis"
+	"github.com/infinivision/hyena/pkg/proxy"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-
-	"github.com/fagongzi/log"
-	"github.com/go-redis/redis"
-	"github.com/infinivision/vectodb"
 )
+
+const (
+	SIZEOF_FLOAT32 int = 4
+	ageCacheWindow int = 30 * 60 //cache age lookup result for 30 minutes
+)
+
+type AgeGender struct {
+	Age    int `json:"age"`
+	Gender int `json:"gender"`
+}
+
+type AgePred struct {
+	Prediction AgeGender `json:"prediction"`
+}
 
 type Identifier3 struct {
 	vecCh     <-chan VecMsg
@@ -25,8 +42,8 @@ type Identifier3 struct {
 	distThr2  float32
 	distThr3  float32
 	flatThr   int
-	vdb       *vectodb.VectoDB
-	nextXid   int64
+	vdb       proxy.Proxy
+	h64       hash.Hash64
 
 	ageServURL string
 	hc         *http.Client
@@ -34,30 +51,26 @@ type Identifier3 struct {
 	rcli       *redis.Client
 }
 
-func NewIdentifier3(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, batchSize int, distThr1, distThr2, distThr3 float32, flatThr int, workDir string, dim int, ageServURL, redisAddr string) (iden *Identifier3) {
+func NewIdentifier3(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, batchSize int, distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageServURL, redisAddr string) (iden *Identifier3) {
 	iden = &Identifier3{
 		vecCh:     vecCh,
 		visitCh:   visitCh,
 		parallel:  parallel,
 		batchSize: batchSize,
-		distThr1:  distThr1,
 		distThr2:  distThr2,
 		distThr3:  distThr3,
-		flatThr:   flatThr,
+		h64:       xxhash.New(),
 
 		ageServURL: ageServURL,
 		hc:         &http.Client{Timeout: time.Second * 10},
 		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
 	}
 	var err error
-	if iden.vdb, err = vectodb.NewVectoDB(workDir, dim, metricType, indexKey, queryParams, distThr1, flatThr); err != nil {
+	mqs := strings.Split(hyenaMqAddrs, ",")
+	prophets := strings.Split(hyenaPdAddrs, ",")
+	if iden.vdb, err = proxy.NewMQBasedProxy("hyena", mqs, prophets, proxy.WithSearchTimeout(time.Duration(1000)*time.Millisecond)); err != nil {
 		log.Fatalf("%+v", err)
 	}
-	var ntotal int
-	if ntotal, err = iden.vdb.GetTotal(); err != nil {
-		log.Fatalf("%+v", err)
-	}
-	iden.nextXid = int64(ntotal)
 
 	iden.rcli = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
@@ -72,7 +85,6 @@ func NewIdentifier3(vecCh <-chan VecMsg, visitCh chan<- *Visit, parallel int, ba
 }
 
 func (this *Identifier3) Serve(ctx context.Context) {
-	go this.builderLoop(ctx)
 	for i := 0; i < this.parallel; i++ {
 		go func() {
 			ticker := time.NewTicker(100 * time.Millisecond)
@@ -101,21 +113,6 @@ func (this *Identifier3) Serve(ctx context.Context) {
 				}
 			}
 		}()
-	}
-}
-
-func (this *Identifier3) builderLoop(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
-	var err error
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err = this.vdb.UpdateIndex(); err != nil {
-				log.Errorf("%+v", err)
-			}
-		}
 	}
 }
 
@@ -160,8 +157,20 @@ func (this *Identifier3) assoicateUidXid(uid, xid int64) (err error) {
 	return
 }
 
-func (this *Identifier3) allocateXid() (xid int64) {
-	xid = atomic.AddInt64(&this.nextXid, 1) - 1
+// allocateXid uses hash of vec as xid. This also helps to deduplicate vectors per content.
+func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
+	// https://stackoverflow.com/questions/11924196/convert-between-slices-of-different-types
+	// Get the slice header
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&vec))
+	// The length and capacity of the slice are different.
+	header.Len *= SIZEOF_FLOAT32
+	header.Cap *= SIZEOF_FLOAT32
+	// Convert slice header to an []byte
+	data := *(*[]byte)(unsafe.Pointer(&header))
+
+	this.h64.Reset()
+	this.h64.Write(data)
+	xid = int64(this.h64.Sum64())
 	return
 }
 
@@ -170,14 +179,14 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 	nq := len(vecMsgs)
 	log.Debugf("(*Identifier).doBatch %d", nq)
 	xq := make([]float32, 0)
-	distances := make([]float32, nq)
 	uids := make([]int64, nq)
-	xids := make([]int64, nq)
 	for _, vecMsg := range vecMsgs {
 		xq = append(xq, vecMsg.Vec...)
 	}
-	var ntotal int
-	if ntotal, err = this.vdb.Search(xq, distances, xids); err != nil {
+	var ntotal uint64
+	var distances []float32
+	var xids []int64
+	if ntotal, distances, xids, err = this.vdb.Search(xq); err != nil {
 		return
 	}
 
@@ -190,7 +199,7 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 	for i := 0; i < nq; i++ {
 		if xids[i] == int64(-1) {
 			cnt1++
-			newXid = this.allocateXid()
+			newXid = this.allocateXid(vecMsgs[i].Vec)
 			if uids[i], err = this.allocateUid(); err != nil {
 				return
 			}
@@ -203,21 +212,21 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 			if uids[i], err = this.getUid(xids[i]); err != nil {
 				return
 			}
-			if vectodb.VectodbCompareDistance(metricType, this.distThr2, distances[i]) {
+			if distances[i] < this.distThr2 {
 				cnt2++
 				var xl int64
 				if xl, err = this.getXidsLen(uids[i]); err != nil {
 					return
 				}
 				if xl < 8 {
-					newXid = this.allocateXid()
+					newXid = this.allocateXid(vecMsgs[i].Vec)
 					if err = this.assoicateUidXid(uids[i], newXid); err != nil {
 						return
 					}
 					newXb = append(newXb, vecMsgs[i].Vec...)
 					newXids = append(newXids, newXid)
 				}
-			} else if vectodb.VectodbCompareDistance(metricType, this.distThr3, distances[i]) {
+			} else if distances[i] < this.distThr3 {
 				cnt3++
 			} else {
 				cnt4++
@@ -233,7 +242,7 @@ func (this *Identifier3) doBatch(vecMsgs []VecMsg) (err error) {
 		}
 	}
 	if extXb != nil {
-		if err = this.vdb.UpdateWithIds(extXb, extXids); err != nil {
+		if err = this.vdb.UpdateWithIds(uint64(len(extXids)), extXb, extXids); err != nil {
 			return
 		}
 	}

@@ -32,8 +32,12 @@ ignored = ["github.com/infinivision/vectodb"]
   name = "github.com/hudl/fargo"
 
 [[constraint]]
+  name = "github.com/cespare/xxhash"
+  version = "1.1.0"
+
+[[constraint]]
   name = "github.com/fagongzi/goetty"
-  version = "1.1.4"
+  branch = "master"
 
 [[constraint]]
   branch = "master"
@@ -62,10 +66,6 @@ ignored = ["github.com/infinivision/vectodb"]
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "0.8.0"
-
-[[constraint]]
-  name = "github.com/youzan/go-nsq"
-  version = "1.2.1-HA"
 
 [[constraint]]
   branch = "master"

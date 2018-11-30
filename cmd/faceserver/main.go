@@ -45,10 +45,10 @@ var (
 	retryIntervalSec    = flag.Int("retry-interval", 10, "Interval(sec): interval seconds between two retries")
 	retryIntervalFactor = flag.Int("retry-interval-factor", 2, "Factor: retry interval factor")
 
+	hyenaMqAddr    = flag.String("hyena-mq-addr", "172.19.0.107:9092", "List of hyena-mq addr.")
+	hyenaPdAddr    = flag.String("hyena-pd-addr", "172.19.0.101:9529,172.19.0.103:9529,172.19.0.104:9529", "List of hyena-pd addr.")
 	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r100/predict", "Face predict server url")
 	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
-	nsqlookupdURLs = flag.String("nsqlookupd-urls", "http://127.0.0.1:4161", "List of URLs of nsqlookupd.")
-	topic          = flag.String("topic", "visits", "NSQ topic.")
 
 	identifyBatchSize = flag.Int("identify-batch-size", 200, "Batch size of search vectodb.")
 	identifyDisThr    = flag.Float64("identify-distance-threshold", 0.4, "Distance threshold of search vectodb.")
@@ -109,34 +109,17 @@ func main() {
 		syscall.SIGQUIT)
 
 	imgCh := make(chan server.ImgMsg, 10000)
-	vecCh := make(chan VecMsg, 10000)
-	visitCh := make(chan *Visit, 10000)
 	vecCh3 := make(chan VecMsg, 10000)
 	visitCh3 := make(chan *Visit, 10000)
 	s := server.NewFileServer(parseCfg(), imgCh)
-	pred := NewPredictor(*predictServURL, imgCh, vecCh, vecCh3, 3)
+	pred := NewPredictor(*predictServURL, imgCh, vecCh3, 3)
 
-	iden := NewIdentifier(vecCh, visitCh, 3, *identifyBatchSize, float32(*identifyDisThr), *identifyFlatThr, *identifyWorkDir, *identifyDim, *ageServURL)
-
-	iden3 := NewIdentifier3(vecCh3, visitCh3, 3, *identifyBatchSize, float32(*identifyDisThr1), float32(*identifyDisThr2), float32(*identifyDisThr3), *identifyFlatThr, *identifyWorkDir3, *identifyDim, *ageServURL, *redisAddr)
-
-	recd, err := NewRecorder(*nsqlookupdURLs, *topic, visitCh)
-	if err != nil {
-		log.Fatalf("%+v", err)
-	}
-
-	recd3, err := NewRecorder(*nsqlookupdURLs, *topic+"3", visitCh3)
-	if err != nil {
-		log.Fatalf("%+v", err)
-	}
+	iden3 := NewIdentifier3(vecCh3, visitCh3, 3, *identifyBatchSize, float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go s.Start()
 	go pred.Serve(ctx)
-	go iden.Serve(ctx)
-	go recd.Serve(ctx)
 	go iden3.Serve(ctx)
-	go recd3.Serve(ctx)
 
 	for {
 		sig := <-sc
