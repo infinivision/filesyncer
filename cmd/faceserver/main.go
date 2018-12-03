@@ -104,7 +104,7 @@ func main() {
 
 	imgCh := make(chan server.ImgMsg, 10000)
 	ctx, cancel := context.WithCancel(context.Background())
-	s := server.NewFileServer(parseCfg())
+	s := server.NewFileServer(parseCfg(), imgCh)
 	go s.Start()
 
 	for i := 0; i < 3; i++ {
@@ -112,7 +112,7 @@ func main() {
 			var err error
 			pred := NewPredictor(*predictServURL)
 			iden3 := NewIdentifier3(float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
-			var recorder Recorder
+			var recorder *Recorder
 			if recorder, err = NewRecorder("", ""); err != nil {
 				log.Errorf("got error: %+v", err)
 				return
@@ -126,7 +126,7 @@ func main() {
 					log.Infof("image process goroutine exited")
 					return
 				case img := <-imgCh:
-					if pr, err = pred.Predictate(img); err != nil {
+					if pr, err = pred.Predictate(img.Img); err != nil {
 						log.Errorf("got error: %+v", err)
 						continue
 					}

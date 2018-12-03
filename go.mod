@@ -38,7 +38,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.5.1
 	github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554
-	github.com/infinivision/hyena v0.0.0-20181121120318-77faef8a03cf
+	github.com/infinivision/hyena v0.0.0-20181130104942-e7ef20ead22c
 	github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
 	github.com/jonboulle/clockwork v0.1.0

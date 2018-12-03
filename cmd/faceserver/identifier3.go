@@ -171,11 +171,11 @@ func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 
 func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	var uid int64
-	var db uint64
-	var distance float32
-	var xid int64
+	var dbs []uint64
+	var distances []float32
+	var xids []int64
 	t0 := time.Now()
-	if db, distance, xid, err = this.vdb.Search(vecMsg.Vec); err != nil {
+	if dbs, distances, xids, err = this.vdb.Search(vecMsg.Vec); err != nil {
 		return
 	}
 	duration := time.Since(t0).Seconds()
@@ -183,11 +183,8 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 
 	var cnt1, cnt2, cnt3, cnt4 int
 	var newXid int64
-	var newXb []float32
 	var newXids []int64
-	var extXb []float32
-	var extXids []int64
-	if xid == int64(-1) {
+	if xids[0] == int64(-1) {
 		cnt1++
 		newXid = this.allocateXid(vecMsg.Vec)
 		if uid, err = this.allocateUid(); err != nil {
@@ -196,13 +193,12 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 		if err = this.assoicateUidXid(uid, newXid); err != nil {
 			return
 		}
-		newXb = append(newXb, vecMsg.Vec...)
 		newXids = append(newXids, newXid)
 	} else {
-		if uid, err = this.getUid(xid); err != nil {
+		if uid, err = this.getUid(xids[0]); err != nil {
 			return
 		}
-		if distance < this.distThr2 {
+		if distances[0] < this.distThr2 {
 			cnt2++
 			var xl int64
 			if xl, err = this.getXidsLen(uid); err != nil {
@@ -213,29 +209,26 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 				if err = this.assoicateUidXid(uid, newXid); err != nil {
 					return
 				}
-				newXb = append(newXb, vecMsg.Vec...)
 				newXids = append(newXids, newXid)
 			}
-		} else if distance < this.distThr3 {
+		} else if distances[0] < this.distThr3 {
 			cnt3++
 		} else {
 			cnt4++
-			extXb = append(extXb, vecMsg.Vec...)
-			extXids = append(extXids, xid)
 		}
 	}
-	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, distances %v", cnt1, cnt2, cnt3, cnt4, distance)
-	if newXb != nil {
+	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, distances %v", cnt1, cnt2, cnt3, cnt4, distances)
+	if cnt1 != 0 || cnt2 != 0 {
 		t0 = time.Now()
-		if err = this.vdb.AddWithIds(newXb, newXids); err != nil {
+		if err = this.vdb.AddWithIds(vecMsg.Vec, newXids); err != nil {
 			return
 		}
 		duration = time.Since(t0).Seconds()
 		idenAddDuration.Observe(duration)
 	}
-	if extXb != nil {
+	if cnt4 != 0 {
 		t0 = time.Now()
-		if err = this.vdb.UpdateWithIds(uint64(len(extXids)), extXb, extXids); err != nil {
+		if err = this.vdb.UpdateWithIds(dbs[0], xids[0], vecMsg.Vec); err != nil {
 			return
 		}
 		duration = time.Since(t0).Seconds()

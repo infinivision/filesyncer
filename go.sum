@@ -76,6 +76,8 @@ github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554 h1:PMgOVKF3jZ/OvLA9XuD2
 github.com/hudl/fargo v0.0.0-20180614092839-fce5cf495554/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/infinivision/hyena v0.0.0-20181121120318-77faef8a03cf h1:jX866iCcsglgFWgtswPDAz++9DTnWKuWO2ZZMME+fcs=
 github.com/infinivision/hyena v0.0.0-20181121120318-77faef8a03cf/go.mod h1:drbuCelG0NbWJU5ZWni4tyFryXwtzU0Nsy1PjPj4mns=
+github.com/infinivision/hyena v0.0.0-20181130104942-e7ef20ead22c h1:OhCXiGuZFww5XqnPQ21uWMt0sOMv2EH6t6exfBX72Sw=
+github.com/infinivision/hyena v0.0.0-20181130104942-e7ef20ead22c/go.mod h1:drbuCelG0NbWJU5ZWni4tyFryXwtzU0Nsy1PjPj4mns=
 github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3 h1:xlaB1RNXtzYXBU6aHMXJqTYaAXL3t2yTayCTKntLYHI=
 github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3/go.mod h1:dhFxWdtpZVXDrS44qw0B3M60GBd2ujoSg48UFmuqOyI=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
