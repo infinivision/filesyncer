@@ -61,7 +61,7 @@ func NewIdentifier3(distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageS
 		h64:      xxhash.New(),
 
 		ageServURL: ageServURL,
-		hc:         &http.Client{Timeout: time.Second * 10},
+		hc:         &http.Client{Timeout: time.Second * 2},
 		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
 	}
 	var err error
