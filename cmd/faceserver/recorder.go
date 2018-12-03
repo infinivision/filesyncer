@@ -1,31 +1,30 @@
 package main
 
 import (
-	"strings"
-
+	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
-	nsq "github.com/youzan/go-nsq"
 )
 
 type Recorder struct {
-	nsqlookupdURLs string
-	topic          string
-	tpm            *nsq.TopicProducerMgr
+	mqAddrs  []string
+	topic    string
+	producer sarama.SyncProducer
 }
 
-func NewRecorder(nsqlookupdURLs string, topic string) (rcd *Recorder, err error) {
-	var tpm *nsq.TopicProducerMgr
-	nc := nsq.NewConfig()
-	tpm, err = nsq.NewTopicProducerMgr([]string{topic}, nc)
+func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Retry.Max = 10
+	config.Producer.Return.Successes = true
+	producer, err := sarama.NewSyncProducer(mqAddrs, config)
 	if err != nil {
-		err = errors.Wrapf(err, "")
-		return
+		return nil, err
 	}
-	tpm.AddLookupdNodes(strings.Split(nsqlookupdURLs, ","))
+
 	rcd = &Recorder{
-		nsqlookupdURLs: nsqlookupdURLs,
-		topic:          topic,
-		tpm:            tpm,
+		mqAddrs:  mqAddrs,
+		topic:    topic,
+		producer: producer,
 	}
 	return
 }
@@ -36,9 +35,12 @@ func (this *Recorder) Recode(v *Visit) (err error) {
 		err = errors.Wrapf(err, "v: %+v", v)
 		return
 	}
-	if err = this.tpm.Publish(this.topic, data); err != nil {
-		err = errors.Wrap(err, "")
-		return
+	_, _, err = this.producer.SendMessage(&sarama.ProducerMessage{
+		Topic: this.topic,
+		Value: sarama.ByteEncoder(data),
+	})
+	if err != nil {
+		return err
 	}
 	return
 }

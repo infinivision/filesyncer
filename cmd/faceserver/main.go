@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	strings "strings"
 	"syscall"
 	"time"
 
@@ -113,7 +114,7 @@ func main() {
 			pred := NewPredictor(*predictServURL)
 			iden3 := NewIdentifier3(float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
 			var recorder *Recorder
-			if recorder, err = NewRecorder("", ""); err != nil {
+			if recorder, err = NewRecorder(strings.Split(*hyenaMqAddr, ","), "visits3"); err != nil {
 				log.Errorf("got error: %+v", err)
 				return
 			}
