@@ -18,6 +18,7 @@ func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
 	config.Producer.Return.Successes = true
 	producer, err := sarama.NewSyncProducer(mqAddrs, config)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return nil, err
 	}
 
@@ -29,7 +30,7 @@ func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
 	return
 }
 
-func (this *Recorder) Recode(v *Visit) (err error) {
+func (this *Recorder) Record(v *Visit) (err error) {
 	var data []byte
 	if data, err = v.Marshal(); err != nil {
 		err = errors.Wrapf(err, "v: %+v", v)

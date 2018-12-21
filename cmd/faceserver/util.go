@@ -43,7 +43,7 @@ func PostFile(hc *http.Client, servURL string, img []byte, respObj interface{}) 
 	respBody, err = ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		err = errors.Wrapf(err, "")
+		err = errors.Wrap(err, "")
 		return
 	}
 	if err = json.Unmarshal(respBody, respObj); err != nil {

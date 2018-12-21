@@ -1,7 +1,8 @@
 module github.com/infinivision/filesyncer
 
 require (
-	github.com/Shopify/sarama v1.19.0
+	github.com/DataDog/zstd v1.3.4 // indirect
+	github.com/Shopify/sarama v1.20.0
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6
 	github.com/aws/aws-sdk-go v1.15.88
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
@@ -49,7 +50,7 @@ require (
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/petar/GoLLRB v0.0.0-20130427215148-53be0d36a84c
-	github.com/pierrec/lz4 v0.0.0-20181005164709-635575b42742
+	github.com/pierrec/lz4 v0.0.0-20181027085611-623b5a2f4d2a
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v0.8.0
@@ -58,6 +59,7 @@ require (
 	github.com/prometheus/procfs v0.0.0-20180528183257-fe93d378a6b0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/shirou/gopsutil v0.0.0-20180801053943-8048a2e9c577
+	github.com/shopify/sarama v1.20.1-0.20181214121743-94536b3e82d3 // indirect
 	github.com/sirupsen/logrus v1.0.5
 	github.com/soheilhy/cmux v0.1.4
 	github.com/stretchr/testify v1.2.2

@@ -136,7 +136,7 @@ func main() {
 						log.Errorf("got error: %+v", err)
 						continue
 					}
-					if err = recorder.Recode(visit); err != nil {
+					if err = recorder.Record(visit); err != nil {
 						log.Errorf("got error: %+v", err)
 						continue
 					}

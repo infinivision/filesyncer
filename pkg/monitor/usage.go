@@ -24,7 +24,7 @@ func (m *Monitor) getSysUsage() (usage *pb.SysUsage, err2 error) {
 	}
 	if CpuTotal == 0 {
 		if cpuinfo, err := cpu.Info(); err != nil {
-			err2 = errors.Wrapf(err, "")
+			err2 = errors.Wrap(err, "")
 			return
 		} else {
 			CpuTotal = uint64(len(cpuinfo))
@@ -32,14 +32,14 @@ func (m *Monitor) getSysUsage() (usage *pb.SysUsage, err2 error) {
 		}
 	}
 	if cpuPer, err := cpu.Percent(300*time.Millisecond, false); err != nil {
-		err2 = errors.Wrapf(err, "")
+		err2 = errors.Wrap(err, "")
 		return
 	} else {
 		usage.CpuUsedPercent = uint32(cpuPer[0]) //average of all virtual cpus
 	}
 
 	if memInfo, err := mem.VirtualMemory(); err != nil {
-		err2 = errors.Wrapf(err, "")
+		err2 = errors.Wrap(err, "")
 		return
 	} else {
 		usage.MemTotal = memInfo.Total                     //RAM size in bytes
@@ -47,7 +47,7 @@ func (m *Monitor) getSysUsage() (usage *pb.SysUsage, err2 error) {
 	}
 
 	if du, err := disk.Usage("/"); err != nil {
-		err2 = errors.Wrapf(err, "")
+		err2 = errors.Wrap(err, "")
 		return
 	} else {
 		usage.DiskTotal = du.Total                     //root partition size in bytes
@@ -55,7 +55,7 @@ func (m *Monitor) getSysUsage() (usage *pb.SysUsage, err2 error) {
 	}
 
 	if avg, err := load.Avg(); err != nil {
-		err2 = errors.Wrapf(err, "")
+		err2 = errors.Wrap(err, "")
 		return
 	} else {
 		usage.LoadAverage1 = avg.Load1 //load average 1 minute

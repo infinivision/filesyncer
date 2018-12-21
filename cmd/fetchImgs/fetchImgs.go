@@ -35,10 +35,13 @@ func s3Get(srv *s3.S3, key string) (value []byte, err error) {
 		Key:    &key,
 	})
 	if err != nil {
-		err = errors.Wrapf(err, "")
+		err = errors.Wrap(err, "")
 		return
 	}
-	value, err = ioutil.ReadAll(out.Body)
+	if value, err = ioutil.ReadAll(out.Body); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
@@ -68,6 +71,7 @@ func main() {
 	myExp := regexp.MustCompile("objID: (?P<objID>[0-9a-f]+), visit3:.*Uid:(?P<Uid>[0-9]+),")
 	var logf *os.File
 	if logf, err = os.Open(*input); err != nil {
+		err = errors.Wrap(err, "")
 		log.Fatalf("got error %+v", err)
 	}
 	scanner := bufio.NewScanner(logf)
@@ -80,6 +84,7 @@ func main() {
 			if _, found := uids[uid]; !found {
 				uids[uid] = 1
 				if err = os.MkdirAll(fmt.Sprintf("%v/uid_%v", *output, uid), 0755); err != nil {
+					err = errors.Wrap(err, "")
 					log.Fatalf("got error %+v", err)
 				}
 			}
@@ -89,9 +94,11 @@ func main() {
 			}
 			var jpg *os.File
 			if jpg, err = os.OpenFile(fmt.Sprintf("%v/uid_%v/%v.jpg", *output, uid, objID), os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0755); err != nil {
+				err = errors.Wrap(err, "")
 				log.Fatalf("got error %+v", err)
 			}
 			if _, err = jpg.Write(img); err != nil {
+				err = errors.Wrap(err, "")
 				log.Fatalf("got error %+v", err)
 			}
 			jpg.Close()
@@ -99,6 +106,7 @@ func main() {
 	}
 
 	if err = scanner.Err(); err != nil {
+		err = errors.Wrap(err, "")
 		log.Fatal(err)
 	}
 	return
