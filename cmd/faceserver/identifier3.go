@@ -176,6 +176,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	var xids []int64
 	t0 := time.Now()
 	if dbs, distances, xids, err = this.vdb.Search(vecMsg.Vec); err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	duration := time.Since(t0).Seconds()
@@ -221,6 +222,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	if cnt1 != 0 || cnt2 != 0 {
 		t0 = time.Now()
 		if err = this.vdb.AddWithIds(vecMsg.Vec, newXids); err != nil {
+			err = errors.Wrap(err, "")
 			return
 		}
 		duration = time.Since(t0).Seconds()
@@ -229,6 +231,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	if cnt4 != 0 {
 		t0 = time.Now()
 		if err = this.vdb.UpdateWithIds(dbs[0], xids[0], vecMsg.Vec); err != nil {
+			err = errors.Wrap(err, "")
 			return
 		}
 		duration = time.Since(t0).Seconds()

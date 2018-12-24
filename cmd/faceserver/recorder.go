@@ -41,6 +41,7 @@ func (this *Recorder) Record(v *Visit) (err error) {
 		Value: sarama.ByteEncoder(data),
 	})
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return err
 	}
 	return
