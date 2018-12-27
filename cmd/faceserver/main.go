@@ -24,10 +24,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/infinivision/filesyncer/pkg/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -79,8 +79,6 @@ func main() {
 		version.ShowVersion()
 		os.Exit(0)
 	}
-
-	log.InitLog()
 
 	if "" != *pprof {
 		log.Infof("start pprof at %s", *pprof)

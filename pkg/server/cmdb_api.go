@@ -3,20 +3,21 @@ package server
 import (
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/fagongzi/log"
 	"github.com/hudl/fargo"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	MacLen = 12
+	MacLen           = 12
+	BlacklistMinutes = 10
 )
 
 type Hardware struct {
@@ -45,6 +46,8 @@ type CmdbApi struct {
 	eurekaApp  string
 	conn       fargo.EurekaConnection
 	app        *fargo.Application
+	nextInst   int
+	blacklist  *cache.Cache
 	hc         *http.Client
 }
 
@@ -52,7 +55,9 @@ func NewCmdbApi(eurekaAddr, eurekaApp string) (ca *CmdbApi, err error) {
 	ca = &CmdbApi{
 		eurekaAddr: eurekaAddr,
 		eurekaApp:  eurekaApp,
-		hc:         &http.Client{Timeout: time.Duration(10) * time.Second},
+		nextInst:   0,
+		blacklist:  cache.New(time.Second*time.Duration(BlacklistMinutes), time.Minute),
+		hc:         &http.Client{Timeout: time.Duration(2) * time.Second},
 	}
 	addrs := strings.Split(eurekaAddr, ",")
 	ca.conn = fargo.NewConn(addrs...)
@@ -117,50 +122,71 @@ func (ca *CmdbApi) GetPosition(mac, cameraIp string) (shop uint64, pos uint32, f
 func (ca *CmdbApi) getTerm(mac string) (terms *TermsRespBody, found bool, err error) {
 	// TODO: read-write race condition of *ca.app?
 	instances := ca.app.Instances
-	if len(instances) == 0 {
+	numInstances := len(instances)
+	if numInstances == 0 {
 		err = errors.Errorf("%s instances are empty", ca.eurekaApp)
 		return
 	}
-	ins := instances[rand.Int()%len(instances)]
-
-	var servURL string
-	if servURL, err = JoinURL(ins.HomePageUrl, "/terminals"); err != nil {
-		return
-	}
-	req, err := http.NewRequest("GET", servURL, nil)
-	// https://stackoverflow.com/questions/30652577/go-doing-a-get-request-and-building-the-querystring/30657518
-	q := req.URL.Query()
-	q.Set("deviceId", mac)
-	req.URL.RawQuery = q.Encode()
-	req.Header.Set("__no_auth__", "foo")
-	log.Debugf("request url: %+v", req.URL.String())
-	var resp *http.Response
-	var respBody []byte
-	if resp, err = ca.hc.Do(req); err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	defer resp.Body.Close()
-	if respBody, err = ioutil.ReadAll(resp.Body); err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	log.Debugf("respBody: %+v", string(respBody))
-	terms = &TermsRespBody{}
-	if err = json.Unmarshal(respBody, terms); err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	if terms.Data.Total != "0" {
-		if terms.Data.Total != "1" {
-			log.Errorf("there are multiple terminals in respBody %+v", string(respBody))
-		} else if terms.Data.Items[0].DeviceId != mac {
-			log.Errorf("incorrect MAC, want %v, have %v, respBody %+v", mac, terms.Data.Items[0].DeviceId, string(respBody))
-		} else {
-			found = true
+	var instURL string
+	for i := 0; i < numInstances; i++ {
+		instURL = instances[ca.nextInst%numInstances].HomePageUrl
+		ca.nextInst = (ca.nextInst + 1) % numInstances
+		if _, found = ca.blacklist.Get(instURL); found {
+			continue
 		}
+
+		var servURL string
+		if servURL, err = JoinURL(instURL, "/terminals"); err != nil {
+			return
+		}
+		var req *http.Request
+		req, err = http.NewRequest("GET", servURL, nil)
+		// https://stackoverflow.com/questions/30652577/go-doing-a-get-request-and-building-the-querystring/30657518
+		q := req.URL.Query()
+		q.Set("deviceId", mac)
+		req.URL.RawQuery = q.Encode()
+		req.Header.Set("__no_auth__", "foo")
+		log.Debugf("request url: %+v", req.URL.String())
+		var resp *http.Response
+		var respBody []byte
+		if resp, err = ca.hc.Do(req); err != nil {
+			err = errors.Wrap(err, "")
+			log.Warnf("got error %+v", err)
+			ca.blacklist.SetDefault(instURL, err)
+			continue
+		}
+		defer resp.Body.Close()
+		if respBody, err = ioutil.ReadAll(resp.Body); err != nil {
+			err = errors.Wrap(err, "")
+			log.Warnf("got error %+v", err)
+			ca.blacklist.SetDefault(instURL, err)
+			continue
+		}
+		log.Debugf("respBody: %+v", string(respBody))
+		terms = &TermsRespBody{}
+		if err = json.Unmarshal(respBody, terms); err != nil {
+			err = errors.Wrap(err, "")
+			log.Warnf("got error %+v", err)
+			ca.blacklist.SetDefault(instURL, err)
+			continue
+		}
+		if terms.Data.Total != "0" {
+			if terms.Data.Total != "1" {
+				log.Errorf("there are multiple terminals in respBody %+v", string(respBody))
+			} else if terms.Data.Items[0].DeviceId != mac {
+				log.Errorf("incorrect MAC, want %v, have %v, respBody %+v", mac, terms.Data.Items[0].DeviceId, string(respBody))
+			} else {
+				found = true
+			}
+		}
+		log.Debugf("respBody parsed as: %+v", terms)
+		return
 	}
-	log.Debugf("respBody parsed as: %+v", terms)
+	if instURL == "" {
+		err = errors.Errorf("%s all instances are in blacklist", ca.eurekaApp)
+		return
+	}
+
 	return
 }
 

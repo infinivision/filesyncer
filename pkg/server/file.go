@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fagongzi/log"
 	"github.com/fagongzi/util/uuid"
 	"github.com/infinivision/filesyncer/pkg/pb"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type fileManager struct {
