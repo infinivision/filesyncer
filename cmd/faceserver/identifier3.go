@@ -1,23 +1,23 @@
 package main
 
 import (
-	fmt "fmt"
+	"fmt"
 	"hash"
 	"net/http"
 	"reflect"
 	"strconv"
-	strings "strings"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/cespare/xxhash"
+	"github.com/fagongzi/log"
 	"github.com/go-redis/redis"
 	"github.com/infinivision/hyena/pkg/proxy"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
