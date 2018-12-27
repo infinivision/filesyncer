@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	SIZEOF_FLOAT32 int = 4
-	ageCacheWindow int = 30 * 60 //cache age lookup result for 30 minutes
+	SIZEOF_FLOAT32     int = 4
+	ageCacheWindow     int = 30 * 60 //cache age lookup result for 30 minutes
+	HyenaSearchTimeout int = 2       //in seconds
+	HttpRRTimeout      int = 2       //in seconds
 )
 
 var (
@@ -61,13 +63,13 @@ func NewIdentifier3(distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageS
 		h64:      xxhash.New(),
 
 		ageServURL: ageServURL,
-		hc:         &http.Client{Timeout: time.Second * 2},
+		hc:         &http.Client{Timeout: time.Duration(HttpRRTimeout) * time.Second},
 		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
 	}
 	var err error
 	mqs := strings.Split(hyenaMqAddrs, ",")
 	prophets := strings.Split(hyenaPdAddrs, ",")
-	if iden.vdb, err = proxy.NewMQBasedProxy("hyena", mqs, prophets, proxy.WithSearchTimeout(time.Duration(1000)*time.Millisecond)); err != nil {
+	if iden.vdb, err = proxy.NewMQBasedProxy("hyena", mqs, prophets, proxy.WithSearchTimeout(time.Duration(HyenaSearchTimeout)*time.Second)); err != nil {
 		log.Fatalf("%+v", err)
 	}
 

@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	MacLen           = 12
-	BlacklistMinutes = 10
+	MacLen               = 12
+	BlacklistMinutes     = 10
+	HttpRRTimeout    int = 2 //in seconds
 )
 
 type Hardware struct {
@@ -57,7 +58,7 @@ func NewCmdbApi(eurekaAddr, eurekaApp string) (ca *CmdbApi, err error) {
 		eurekaApp:  eurekaApp,
 		nextInst:   0,
 		blacklist:  cache.New(time.Second*time.Duration(BlacklistMinutes), time.Minute),
-		hc:         &http.Client{Timeout: time.Duration(2) * time.Second},
+		hc:         &http.Client{Timeout: time.Duration(HttpRRTimeout) * time.Second},
 	}
 	addrs := strings.Split(eurekaAddr, ",")
 	ca.conn = fargo.NewConn(addrs...)
