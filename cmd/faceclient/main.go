@@ -14,10 +14,12 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	runPprof "runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -61,20 +63,42 @@ func main() {
 	signal.Notify(sc,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-		syscall.SIGQUIT)
+		syscall.SIGQUIT,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+	)
 
 	go s.Start()
 
 	for {
 		sig := <-sc
-		retVal := 0
-		if sig != syscall.SIGTERM {
-			retVal = 1
+		switch sig {
+		case syscall.SIGUSR1:
+			buf := bytes.NewBuffer([]byte{})
+			_ = runPprof.Lookup("goroutine").WriteTo(buf, 1)
+			log.Infof("got signal=<%d>.", sig)
+			log.Infof(buf.String())
+			continue
+		case syscall.SIGUSR2:
+			log.Infof("got signal=<%d>.", sig)
+			if log.GetLogLevel() != log.LogDebug {
+				log.Info("changed log level to debug")
+				log.SetLevel(log.LogDebug)
+			} else {
+				log.Info("changed log level to info")
+				log.SetLevel(log.LogInfo)
+			}
+			continue
+		default:
+			retVal := 0
+			if sig != syscall.SIGTERM {
+				retVal = 1
+			}
+			log.Infof("exit with signal=<%d>.", sig)
+			s.Stop()
+			log.Infof(" bye :-).")
+			os.Exit(retVal)
 		}
-		log.Infof("exit with signal=<%d>.", sig)
-		s.Stop()
-		log.Infof(" bye :-).")
-		os.Exit(retVal)
 	}
 }
 

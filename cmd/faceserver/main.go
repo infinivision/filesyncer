@@ -14,13 +14,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	strings "strings"
+	runPprof "runtime/pprof"
+	"strings"
 	"syscall"
 	"time"
 
@@ -101,7 +103,10 @@ func main() {
 	signal.Notify(sc,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-		syscall.SIGQUIT)
+		syscall.SIGQUIT,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+	)
 
 	imgCh := make(chan server.ImgMsg, 10000)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -147,16 +152,35 @@ func main() {
 
 	for {
 		sig := <-sc
-		retVal := 0
-		if sig != syscall.SIGTERM {
-			retVal = 1
+		switch sig {
+		case syscall.SIGUSR1:
+			buf := bytes.NewBuffer([]byte{})
+			_ = runPprof.Lookup("goroutine").WriteTo(buf, 1)
+			log.Infof("got signal=<%d>.", sig)
+			log.Infof(buf.String())
+			continue
+		case syscall.SIGUSR2:
+			log.Infof("got signal=<%d>.", sig)
+			if log.GetLogLevel() != log.LogDebug {
+				log.Info("changed log level to debug")
+				log.SetLevel(log.LogDebug)
+			} else {
+				log.Info("changed log level to info")
+				log.SetLevel(log.LogInfo)
+			}
+			continue
+		default:
+			retVal := 0
+			if sig != syscall.SIGTERM {
+				retVal = 1
+			}
+			log.Infof("exit with signal=<%d>.", sig)
+			s.Stop()
+			cancel()
+			time.Sleep(5 * time.Second)
+			log.Infof(" bye :-).")
+			os.Exit(retVal)
 		}
-		log.Infof("exit with signal=<%d>.", sig)
-		s.Stop()
-		cancel()
-		time.Sleep(5 * time.Second)
-		log.Infof(" bye :-).")
-		os.Exit(retVal)
 	}
 }
 
