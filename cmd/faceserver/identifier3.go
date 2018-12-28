@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -56,10 +55,11 @@ type Identifier3 struct {
 	rcli       *redis.Client
 }
 
-func NewIdentifier3(distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageServURL, redisAddr string) (iden *Identifier3) {
+func NewIdentifier3(vdb proxy.Proxy, distThr2, distThr3 float32, ageServURL, redisAddr string) (iden *Identifier3) {
 	iden = &Identifier3{
 		distThr2: distThr2,
 		distThr3: distThr3,
+		vdb:      vdb,
 		h64:      xxhash.New(),
 
 		ageServURL: ageServURL,
@@ -67,11 +67,6 @@ func NewIdentifier3(distThr2, distThr3 float32, hyenaMqAddrs, hyenaPdAddrs, ageS
 		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
 	}
 	var err error
-	mqs := strings.Split(hyenaMqAddrs, ",")
-	prophets := strings.Split(hyenaPdAddrs, ",")
-	if iden.vdb, err = proxy.NewMQBasedProxy("hyena", mqs, prophets, proxy.WithSearchTimeout(time.Duration(HyenaSearchTimeout)*time.Second)); err != nil {
-		log.Fatalf("%+v", err)
-	}
 
 	iden.rcli = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,

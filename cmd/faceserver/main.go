@@ -29,6 +29,7 @@ import (
 	"github.com/fagongzi/log"
 	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/infinivision/filesyncer/pkg/version"
+	"github.com/infinivision/hyena/pkg/proxy"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -113,11 +114,19 @@ func main() {
 	s := server.NewFileServer(parseCfg(), imgCh)
 	go s.Start()
 
+	mqs := strings.Split(*hyenaMqAddr, ",")
+	prophets := strings.Split(*hyenaPdAddr, ",")
+	var vdb proxy.Proxy
+	var err error
+	if vdb, err = proxy.NewMQBasedProxy("hyena", mqs, prophets, proxy.WithSearchTimeout(time.Duration(HyenaSearchTimeout)*time.Second)); err != nil {
+		log.Fatalf("got error %+v", err)
+	}
+
 	for i := 0; i < 3; i++ {
 		go func() {
 			var err error
 			pred := NewPredictor(*predictServURL)
-			iden3 := NewIdentifier3(float32(*identifyDisThr2), float32(*identifyDisThr3), *hyenaMqAddr, *hyenaPdAddr, *ageServURL, *redisAddr)
+			iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *ageServURL, *redisAddr)
 			var recorder *Recorder
 			if recorder, err = NewRecorder(strings.Split(*hyenaMqAddr, ","), "visits3"); err != nil {
 				log.Errorf("got error: %+v", err)
