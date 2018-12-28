@@ -1,6 +1,7 @@
 package main
 
 import (
+	math "math"
 	"net/http"
 	"sync"
 	"time"
@@ -47,6 +48,20 @@ func (this *Predictor) Predictate(img []byte) (pr *PredResp, err error) {
 	if duration, err = PostFile(this.hc, this.servURL, img, pr); err != nil {
 		return
 	}
+	//predict result needs normalization
+	normalize(pr.Vec)
 	predRpcDuration.Observe(duration.Seconds())
+	return
+}
+
+func normalize(vec []float32) {
+	var prod float64
+	for i := 0; i < len(vec); i++ {
+		prod += float64(vec[i]) * float64(vec[i])
+	}
+	prod = math.Sqrt(prod)
+	for i := 0; i < len(vec); i++ {
+		vec[i] = float32(float64(vec[i]) / prod)
+	}
 	return
 }
