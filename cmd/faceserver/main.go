@@ -54,9 +54,8 @@ var (
 	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r100/predict", "Face predict server url")
 	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
 
-	identifyBatchSize = flag.Int("identify-batch-size", 200, "Batch size of search vectodb.")
-	identifyDisThr2   = flag.Float64("identify-distance-threshold2", 0.6, "Distance threshold of merging new vector.")
-	identifyDisThr3   = flag.Float64("identify-distance-threshold3", 0.8, "Distance threshold of discarding new vector.")
+	identifyDisThr2 = flag.Float64("identify-distance-threshold2", 0.6, "Distance threshold of merging new vector.")
+	identifyDisThr3 = flag.Float64("identify-distance-threshold3", 0.8, "Distance threshold of discarding new vector.")
 
 	redisAddr = flag.String("redis-addr", "127.0.0.1:6379", "Addr: redis address")
 
