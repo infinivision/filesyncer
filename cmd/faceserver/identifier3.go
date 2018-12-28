@@ -119,7 +119,7 @@ func (this *Identifier3) allocateUid() (uid int64, err error) {
 
 func (this *Identifier3) getUid(xid int64) (uid int64, err error) {
 	var strUid string
-	if strUid, err = this.rcli.Get(fmt.Sprintf("xid_%v", xid)).Result(); err != nil {
+	if strUid, err = this.rcli.Get(fmt.Sprintf("xid_%016x", uint64(xid))).Result(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
@@ -139,15 +139,15 @@ func (this *Identifier3) getXidsLen(uid int64) (xl int64, err error) {
 }
 
 func (this *Identifier3) associateUidXid(uid, xid int64) (err error) {
-	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 10), 0).Err(); err != nil {
+	if err = this.rcli.Set(fmt.Sprintf("xid_%016x", uint64(xid)), strconv.FormatInt(uid, 10), 0).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
-	if err = this.rcli.LPush(fmt.Sprintf("uid_%v", uid), strconv.FormatInt(xid, 10)).Err(); err != nil {
+	if err = this.rcli.LPush(fmt.Sprintf("uid_%v", uid), fmt.Sprintf("%016x", uint64(xid))).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
 	}
-	log.Infof("associated xid %v with uid %v", xid, uid)
+	log.Infof("associated xid %016x with uid %v", uint64(xid), uid)
 	return
 }
 
@@ -165,7 +165,7 @@ func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 	this.h64.Reset()
 	this.h64.Write(data)
 	xid = int64(this.h64.Sum64())
-	log.Infof("allocated xid %v", xid)
+	log.Infof("allocated xid %016x", uint64(xid))
 	return
 }
 
