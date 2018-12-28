@@ -65,6 +65,12 @@ var (
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
+const (
+	Epison   float64 = 0.0001
+	NormLow  float64 = float64(1) - Epison
+	NormHigh float64 = float64(1) + Epison
+)
+
 type VecMsg struct {
 	Shop     uint64
 	Position uint32
@@ -144,6 +150,12 @@ func main() {
 						log.Errorf("got error: %+v", err)
 						continue
 					}
+					nor := norm(pr.Vec)
+					if nor < NormLow || nor > NormHigh {
+						log.Errorf("norm is incorrect, want between [%v, %v], have %v", NormLow, NormHigh, nor)
+						continue
+					}
+
 					vecMsg = VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
 					if visit, err = iden3.Identify(vecMsg); err != nil {
 						log.Errorf("got error: %+v", err)
@@ -210,4 +222,11 @@ func parseCfg() *server.Cfg {
 	cfg.EurekaAddr = *eurekaAddr
 	cfg.EurekaApp = *eurekaApp
 	return cfg
+}
+
+func norm(vec []float32) (prod float64) {
+	for i := 0; i < len(vec); i++ {
+		prod += float64(vec[i]) * float64(vec[i])
+	}
+	return prod
 }
