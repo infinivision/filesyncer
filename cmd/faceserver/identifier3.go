@@ -113,6 +113,7 @@ func (this *Identifier3) allocateUid() (uid int64, err error) {
 		err = errors.Wrap(err, "")
 		return
 	}
+	log.Infof("allocated uid %v", uid)
 	return
 }
 
@@ -137,7 +138,7 @@ func (this *Identifier3) getXidsLen(uid int64) (xl int64, err error) {
 	return
 }
 
-func (this *Identifier3) assoicateUidXid(uid, xid int64) (err error) {
+func (this *Identifier3) associateUidXid(uid, xid int64) (err error) {
 	if err = this.rcli.Set(fmt.Sprintf("xid_%v", xid), strconv.FormatInt(uid, 10), 0).Err(); err != nil {
 		err = errors.Wrap(err, "")
 		return
@@ -146,6 +147,7 @@ func (this *Identifier3) assoicateUidXid(uid, xid int64) (err error) {
 		err = errors.Wrap(err, "")
 		return
 	}
+	log.Infof("associated xid %v with uid %v", xid, uid)
 	return
 }
 
@@ -163,6 +165,7 @@ func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 	this.h64.Reset()
 	this.h64.Write(data)
 	xid = int64(this.h64.Sum64())
+	log.Infof("allocated xid %v", xid)
 	return
 }
 
@@ -178,6 +181,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	}
 	duration := time.Since(t0).Seconds()
 	idenSearchDuration.Observe(duration)
+	log.Infof("hyena search result: dbs %v, distances %v, xids %v", dbs, distances, xids)
 
 	var cnt1, cnt2, cnt3, cnt4 int
 	var newXid int64
@@ -188,7 +192,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 		if uid, err = this.allocateUid(); err != nil {
 			return
 		}
-		if err = this.assoicateUidXid(uid, newXid); err != nil {
+		if err = this.associateUidXid(uid, newXid); err != nil {
 			return
 		}
 		newXids = append(newXids, newXid)
@@ -204,7 +208,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 			}
 			if xl < 8 {
 				newXid = this.allocateXid(vecMsg.Vec)
-				if err = this.assoicateUidXid(uid, newXid); err != nil {
+				if err = this.associateUidXid(uid, newXid); err != nil {
 					return
 				}
 				newXids = append(newXids, newXid)
@@ -215,7 +219,6 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 			cnt4++
 		}
 	}
-	log.Infof("vectodb search result: cnt1 %d, cnt2 %d, cnt3 %d, cnt4 %d, distances %v", cnt1, cnt2, cnt3, cnt4, distances)
 	if cnt1 != 0 || cnt2 != 0 {
 		t0 = time.Now()
 		if err = this.vdb.AddWithIds(vecMsg.Vec, newXids); err != nil {
