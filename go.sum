@@ -82,6 +82,8 @@ github.com/infinivision/hyena v0.0.0-20181130104942-e7ef20ead22c h1:OhCXiGuZFww5
 github.com/infinivision/hyena v0.0.0-20181130104942-e7ef20ead22c/go.mod h1:drbuCelG0NbWJU5ZWni4tyFryXwtzU0Nsy1PjPj4mns=
 github.com/infinivision/hyena v0.0.0-20181228031553-e9500e78c328 h1:LWGuIWQFQVJGSQ80N/U0pkTUdpmGDs/2eTF/tVYHrxI=
 github.com/infinivision/hyena v0.0.0-20181228031553-e9500e78c328/go.mod h1:drbuCelG0NbWJU5ZWni4tyFryXwtzU0Nsy1PjPj4mns=
+github.com/infinivision/hyena v0.0.0-20181228060349-9e641d80db3a h1:aeYa5ZziFtrvYrbQuO8hCpNuNG7KqYTTTJL/Kgw4gPo=
+github.com/infinivision/hyena v0.0.0-20181228060349-9e641d80db3a/go.mod h1:drbuCelG0NbWJU5ZWni4tyFryXwtzU0Nsy1PjPj4mns=
 github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3 h1:xlaB1RNXtzYXBU6aHMXJqTYaAXL3t2yTayCTKntLYHI=
 github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3/go.mod h1:dhFxWdtpZVXDrS44qw0B3M60GBd2ujoSg48UFmuqOyI=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
