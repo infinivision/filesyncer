@@ -24,6 +24,7 @@ const (
 	ageCacheWindow     int = 30 * 60 //cache age lookup result for 30 minutes
 	HyenaSearchTimeout int = 2       //in seconds
 	HttpRRTimeout      int = 2       //in seconds
+	RedisCmdTimeout        = time.Duration(2) * time.Second
 )
 
 var (
@@ -119,35 +120,41 @@ func (this *Identifier3) allocateUid() (uid int64, err error) {
 
 func (this *Identifier3) getUid(xid int64) (uid int64, err error) {
 	var strUid string
-	if strUid, err = this.rcli.Get(fmt.Sprintf("xid_%016x", uint64(xid))).Result(); err != nil {
-		err = errors.Wrap(err, "")
+	keyXid := fmt.Sprintf("xid_%016x", uint64(xid))
+	if strUid, err = this.rcli.Get(keyXid).Result(); err != nil {
+		err = errors.Wrapf(err, "keyXid %v", keyXid)
 		return
 	}
 	if uid, err = strconv.ParseInt(strUid, 10, 64); err != nil {
-		err = errors.Wrap(err, "")
+		err = errors.Wrapf(err, "strUid %v", strUid)
 		return
 	}
 	return
 }
 
 func (this *Identifier3) getXidsLen(uid int64) (xl int64, err error) {
-	if xl, err = this.rcli.LLen(fmt.Sprintf("uid_%v", uid)).Result(); err != nil {
-		err = errors.Wrap(err, "")
+	keyUid := fmt.Sprintf("uid_%v", uid)
+	if xl, err = this.rcli.LLen(keyUid).Result(); err != nil {
+		err = errors.Wrapf(err, "keyUid %v", keyUid)
 		return
 	}
 	return
 }
 
 func (this *Identifier3) associateUidXid(uid, xid int64) (err error) {
-	if err = this.rcli.Set(fmt.Sprintf("xid_%016x", uint64(xid)), strconv.FormatInt(uid, 10), 0).Err(); err != nil {
-		err = errors.Wrap(err, "")
+	keyUid := fmt.Sprintf("uid_%v", uid)
+	keyXid := fmt.Sprintf("xid_%016x", uint64(xid))
+	strUid := strconv.FormatInt(uid, 10)
+	strXid := fmt.Sprintf("%016x", uint64(xid))
+	if err = this.rcli.Set(keyXid, strUid, RedisCmdTimeout).Err(); err != nil {
+		err = errors.Wrapf(err, "keyXid %v", keyXid)
 		return
 	}
-	if err = this.rcli.LPush(fmt.Sprintf("uid_%v", uid), fmt.Sprintf("%016x", uint64(xid))).Err(); err != nil {
-		err = errors.Wrap(err, "")
+	if err = this.rcli.LPush(keyUid, strXid).Err(); err != nil {
+		err = errors.Wrapf(err, "keyUid %v", keyUid)
 		return
 	}
-	log.Infof("associated xid %016x with uid %v", uint64(xid), uid)
+	log.Infof("associated xid %v with uid %v", strXid, strUid)
 	return
 }
 
@@ -239,10 +246,10 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	}
 
 	var found bool
-	strUid := fmt.Sprintf("%s", uid)
+	keyUid := fmt.Sprintf("%s", uid)
 	var ag *AgeGender
 	var val interface{}
-	if val, found = this.ageCache.Get(strUid); found {
+	if val, found = this.ageCache.Get(keyUid); found {
 		ag = val.(*AgeGender)
 	} else {
 		agePred := &AgePred{}
@@ -251,7 +258,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 		}
 		ag = &agePred.Prediction
 	}
-	this.ageCache.SetDefault(strUid, ag)
+	this.ageCache.SetDefault(keyUid, ag)
 	visit = &Visit{
 		Uid:       uint64(uid),
 		VisitTime: uint64(vecMsg.ModTime),
