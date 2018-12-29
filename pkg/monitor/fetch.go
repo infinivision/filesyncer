@@ -37,7 +37,7 @@ func (m *Monitor) doFetchFiles(arg interface{}) {
 		return
 	}
 
-	log.Debugf("fetch: get files: %+v", files)
+	log.Infof("fetch: get files: %+v", files)
 
 	// If empty, later retry. Otherwise, wait complete notify.
 	// If we always trigger monitor, maybe duplicate upload.

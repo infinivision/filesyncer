@@ -104,7 +104,7 @@ func (m *Monitor) startPrepareTask() {
 				log.Infof("task-prepare: stopped")
 				return
 			case file := <-m.readyC:
-				log.Debugf("task-prepare: do %s", file)
+				log.Infof("task-prepare: do %s", file)
 				m.handlePrepare(file)
 			}
 		}
