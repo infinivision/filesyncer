@@ -227,6 +227,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	}
 	if cnt1 != 0 || cnt2 != 0 {
 		t0 = time.Now()
+		log.Infof("hyena added xids %+v", newXids)
 		if err = this.vdb.AddWithIds(vecMsg.Vec, newXids); err != nil {
 			err = errors.Wrap(err, "")
 			return
