@@ -24,7 +24,6 @@ const (
 	ageCacheWindow     int = 30 * 60 //cache age lookup result for 30 minutes
 	HyenaSearchTimeout int = 2       //in seconds
 	HttpRRTimeout      int = 2       //in seconds
-	RedisCmdTimeout        = time.Duration(2) * time.Second
 )
 
 var (
@@ -146,7 +145,7 @@ func (this *Identifier3) associateUidXid(uid, xid int64) (err error) {
 	keyXid := fmt.Sprintf("xid_%016x", uint64(xid))
 	strUid := strconv.FormatInt(uid, 10)
 	strXid := fmt.Sprintf("%016x", uint64(xid))
-	if err = this.rcli.Set(keyXid, strUid, RedisCmdTimeout).Err(); err != nil {
+	if err = this.rcli.Set(keyXid, strUid, 0).Err(); err != nil {
 		err = errors.Wrapf(err, "keyXid %v", keyXid)
 		return
 	}
