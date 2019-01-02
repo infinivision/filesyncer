@@ -237,6 +237,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	}
 	if cnt4 != 0 {
 		t0 = time.Now()
+		log.Infof("hyena updated xids %+v, %016x", xids[0], uint64(xids[0]))
 		if err = this.vdb.UpdateWithIds(dbs[0], xids[0], vecMsg.Vec); err != nil {
 			err = errors.Wrap(err, "")
 			return
