@@ -31,7 +31,7 @@ import (
 
 var (
 	discovery        = flag.String("discovery", "", "Get real addresses of file server from discovery server.")
-	backupServers    = flag.String("backup", "upload.ai-cloud.io:8090", "Backup servers if discovery server is not available, multi server split by ','.")
+	backupServers    = flag.String("backup", "upload.infinivision.cn:8090", "Backup servers if discovery server is not available, multi server split by ','.")
 	target           = flag.String("target", "/opt/dev_keeper/faces", "Dir: monitor target dir.")
 	chunk            = flag.Int64("chunk", 1024, "Chunk size: bytes")
 	limitTraffic     = flag.Int64("limit-traffic", 512, "Limit(KB): upload traffic limit.")

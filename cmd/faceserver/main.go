@@ -127,7 +127,7 @@ func main() {
 			pred := NewPredictor(*predictServURL)
 			iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *ageServURL, *redisAddr)
 			var recorder *Recorder
-			if recorder, err = NewRecorder(strings.Split(*hyenaMqAddr, ","), "visits3"); err != nil {
+			if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
 				log.Errorf("got error: %+v", err)
 				return
 			}
