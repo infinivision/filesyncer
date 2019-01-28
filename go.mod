@@ -47,6 +47,7 @@ require (
 	github.com/miekg/dns v1.0.8
 	github.com/minio/minio-go v6.0.2+incompatible
 	github.com/mitchellh/go-homedir v0.0.0-20180523094522-3864e76763d9
+	github.com/montanaflynn/stats v0.5.0
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/petar/GoLLRB v0.0.0-20130427215148-53be0d36a84c
