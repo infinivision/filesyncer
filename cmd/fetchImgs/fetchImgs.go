@@ -88,12 +88,17 @@ func main() {
 					log.Fatalf("got error %+v", err)
 				}
 			}
+			fp := fmt.Sprintf("%v/uid_%v/%v.jpg", *output, uid, objID)
+			if _, err = os.Stat(fp); err == nil {
+				log.Infof("%v already exist", fp)
+				continue
+			}
 			var img []byte
 			if img, err = s3Get(srv, objID); err != nil {
 				log.Fatalf("got error %+v", err)
 			}
 			var jpg *os.File
-			if jpg, err = os.OpenFile(fmt.Sprintf("%v/uid_%v/%v.jpg", *output, uid, objID), os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0755); err != nil {
+			if jpg, err = os.OpenFile(fp, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0755); err != nil {
 				err = errors.Wrap(err, "")
 				log.Fatalf("got error %+v", err)
 			}
