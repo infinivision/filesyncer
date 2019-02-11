@@ -51,8 +51,7 @@ var (
 
 	hyenaMqAddr    = flag.String("hyena-mq-addr", "172.19.0.107:9092", "List of hyena-mq addr.")
 	hyenaPdAddr    = flag.String("hyena-pd-addr", "172.19.0.101:9529,172.19.0.103:9529,172.19.0.104:9529", "List of hyena-pd addr.")
-	predictServURL = flag.String("predict-serv-url", "http://127.0.0.1/r100/predict", "Face predict server url")
-	ageServURL     = flag.String("age-serv-url", "http://127.0.0.1/ga/predict", "Face age and gender predict server url")
+	predictServURL = flag.String("predict-serv-url", "http://172.19.0.104:8081/", "Face predict server url")
 
 	identifyDisThr2 = flag.Float64("identify-distance-threshold2", 0.6, "Distance threshold of merging new vector.")
 	identifyDisThr3 = flag.Float64("identify-distance-threshold3", 0.8, "Distance threshold of discarding new vector.")
@@ -72,6 +71,22 @@ type VecMsg struct {
 	ObjID    string
 	Img      []byte
 	Vec      []float32
+	Age      int
+	Gender   int
+}
+
+func handleImgMsgs(iden3 *Identifier3, recorder *Recorder, imgMsgs []server.ImgMsg) {
+	var visits []*Visit
+	var err error
+	if visits, err = iden3.DoBatch(imgMsgs); err != nil {
+		log.Errorf("got error: %+v", err)
+		return
+	}
+	if err = recorder.Record(visits); err != nil {
+		log.Errorf("got error: %+v", err)
+		return
+	}
+	return
 }
 
 func main() {
@@ -121,43 +136,35 @@ func main() {
 		log.Fatalf("got error %+v", err)
 	}
 
-	for i := 0; i < 3; i++ {
-		go func() {
-			var err error
-			pred := NewPredictor(*predictServURL)
-			iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *ageServURL, *redisAddr)
-			var recorder *Recorder
-			if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
-				log.Errorf("got error: %+v", err)
+	go func() {
+		var err error
+		iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *predictServURL, *redisAddr)
+		var recorder *Recorder
+		if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
+			log.Errorf("got error: %+v", err)
+			return
+		}
+		var imgMsgs []server.ImgMsg
+		tickCh := time.Tick(50 * time.Millisecond)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Infof("image process goroutine exited")
 				return
-			}
-			var pr *PredResp
-			var vecMsg VecMsg
-			var visit *Visit
-			for {
-				select {
-				case <-ctx.Done():
-					log.Infof("image process goroutine exited")
-					return
-				case img := <-imgCh:
-					if pr, err = pred.Predictate(img.Img); err != nil {
-						log.Errorf("got error: %+v", err)
-						continue
-					}
-
-					vecMsg = VecMsg{Shop: img.Shop, Position: img.Position, ModTime: img.ModTime, ObjID: img.ObjID, Img: img.Img, Vec: pr.Vec}
-					if visit, err = iden3.Identify(vecMsg); err != nil {
-						log.Errorf("got error: %+v", err)
-						continue
-					}
-					if err = recorder.Record(visit); err != nil {
-						log.Errorf("got error: %+v", err)
-						continue
-					}
+			case img := <-imgCh:
+				imgMsgs = append(imgMsgs, img)
+				if len(imgMsgs) >= 10 {
+					handleImgMsgs(iden3, recorder, imgMsgs)
+					imgMsgs = make([]server.ImgMsg, 10)
+				}
+			case <-tickCh:
+				if len(imgMsgs) != 0 {
+					handleImgMsgs(iden3, recorder, imgMsgs)
+					imgMsgs = make([]server.ImgMsg, 10)
 				}
 			}
-		}()
-	}
+		}
+	}()
 
 	for {
 		sig := <-sc

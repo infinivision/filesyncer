@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"hash"
+	math "math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -13,21 +15,21 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/fagongzi/log"
 	"github.com/go-redis/redis"
+	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/infinivision/hyena/pkg/proxy"
-	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
 	SIZEOF_FLOAT32     int = 4
-	ageCacheWindow     int = 30 * 60 //cache age lookup result for 30 minutes
-	HyenaSearchTimeout int = 2       //in seconds
-	HttpRRTimeout      int = 2       //in seconds
+	HyenaSearchTimeout int = 2 //in seconds
+	HttpRRTimeout      int = 2 //in seconds
 )
 
 var (
 	idenOnce           sync.Once
+	idenPredDuration   prometheus.Histogram
 	idenSearchDuration prometheus.Histogram
 	idenAddDuration    prometheus.Histogram
 	idenUpdateDuration prometheus.Histogram
@@ -38,8 +40,13 @@ type AgeGender struct {
 	Gender int `json:"gender"`
 }
 
-type AgePred struct {
-	Prediction AgeGender `json:"prediction"`
+type RspPred struct {
+	FileName  string `json:"filename"`
+	Embedding string `json:"embedding"`
+	Age       int    `json:"age"`
+	Gender    int    `json:"gender"`
+	PoseType  int    `json:"post_type"`
+	State     int    `json:"state"`
 }
 
 type Identifier3 struct {
@@ -49,22 +56,20 @@ type Identifier3 struct {
 	vdb      proxy.Proxy
 	h64      hash.Hash64
 
-	ageServURL string
-	hc         *http.Client
-	ageCache   *cache.Cache
-	rcli       *redis.Client
+	servURL string
+	hc      *http.Client
+	rcli    *redis.Client
 }
 
-func NewIdentifier3(vdb proxy.Proxy, distThr2, distThr3 float32, ageServURL, redisAddr string) (iden *Identifier3) {
+func NewIdentifier3(vdb proxy.Proxy, distThr2, distThr3 float32, servURL, redisAddr string) (iden *Identifier3) {
 	iden = &Identifier3{
 		distThr2: distThr2,
 		distThr3: distThr3,
 		vdb:      vdb,
 		h64:      xxhash.New(),
 
-		ageServURL: ageServURL,
-		hc:         &http.Client{Timeout: time.Duration(HttpRRTimeout) * time.Second},
-		ageCache:   cache.New(time.Second*time.Duration(ageCacheWindow), time.Minute),
+		servURL: servURL,
+		hc:      &http.Client{Timeout: time.Duration(HttpRRTimeout) * time.Second},
 	}
 	var err error
 
@@ -79,28 +84,36 @@ func NewIdentifier3(vdb proxy.Proxy, distThr2, distThr3 float32, ageServURL, red
 	}
 
 	idenOnce.Do(func() {
+		idenPredDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: "mcd",
+			Subsystem: "faceserver",
+			Name:      "idendify_predication_duration_seconds",
+			Help:      "predication RPC latency distributions.",
+			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
+		})
 		idenSearchDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace: "mcd",
 			Subsystem: "faceserver",
 			Name:      "idendify_search_duration_seconds",
-			Help:      "identify RPC latency distributions.",
+			Help:      "hyena search RPC latency distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		})
 		idenAddDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace: "mcd",
 			Subsystem: "faceserver",
 			Name:      "idendify_add_duration_seconds",
-			Help:      "identify RPC latency distributions.",
+			Help:      "hyena add RPC latency distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		})
 		idenUpdateDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace: "mcd",
 			Subsystem: "faceserver",
 			Name:      "idendify_update_duration_seconds",
-			Help:      "identify RPC latency distributions.",
+			Help:      "hyena update RPC latency distributions.",
 			Buckets:   prometheus.LinearBuckets(0, 0.01, 100), //100 buckets, each is 10 ms.
 		})
 
+		prometheus.MustRegister(idenPredDuration)
 		prometheus.MustRegister(idenSearchDuration)
 		prometheus.MustRegister(idenAddDuration)
 		prometheus.MustRegister(idenUpdateDuration)
@@ -161,7 +174,8 @@ func (this *Identifier3) associateUidXid(uid, xid int64) (err error) {
 func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 	// https://stackoverflow.com/questions/11924196/convert-between-slices-of-different-types
 	// Get the slice header
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&vec))
+	vec2 := vec
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&vec2))
 	// The length and capacity of the slice are different.
 	header.Len *= SIZEOF_FLOAT32
 	header.Cap *= SIZEOF_FLOAT32
@@ -172,6 +186,62 @@ func (this *Identifier3) allocateXid(vec []float32) (xid int64) {
 	this.h64.Write(data)
 	xid = int64(this.h64.Sum64())
 	log.Infof("allocated xid %016x", uint64(xid))
+	return
+}
+
+func normalize(vec []float32) {
+	var prod float64
+	for i := 0; i < len(vec); i++ {
+		prod += float64(vec[i]) * float64(vec[i])
+	}
+	prod = math.Sqrt(prod)
+	for i := 0; i < len(vec); i++ {
+		vec[i] = float32(float64(vec[i]) / prod)
+	}
+	return
+}
+
+func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err error) {
+	var imgs [][]byte
+	var visit *Visit
+	var duration time.Duration
+	for _, img := range imgMsgs {
+		imgs = append(imgs, img.Img)
+	}
+	rspPreds := make([]RspPred, len(imgMsgs))
+	if duration, err = PostFiles(this.hc, this.servURL, imgs, rspPreds); err != nil {
+		log.Errorf("got error %+v", err)
+		return
+	}
+	idenPredDuration.Observe(duration.Seconds())
+	for i, rspPred := range rspPreds {
+		var data []byte
+		if data, err = base64.StdEncoding.DecodeString(rspPred.Embedding); err != nil {
+			err = errors.Wrapf(err, "base64 decode error")
+			log.Errorf("got error %+v", err)
+			return
+		}
+		if len(data)%SIZEOF_FLOAT32 != 0 {
+			log.Errorf("rspPred.Embedding length is incorrect, want times of %d, have %d", SIZEOF_FLOAT32, len(data))
+			return
+		}
+		header := *(*reflect.SliceHeader)(unsafe.Pointer(&data))
+		// The length and capacity of the slice are different.
+		header.Len /= SIZEOF_FLOAT32
+		header.Cap /= SIZEOF_FLOAT32
+		// Convert slice header to an []float32
+		vec := *(*[]float32)(unsafe.Pointer(&header))
+		//predict result needs normalization
+		normalize(vec)
+
+		imgMsg := imgMsgs[i]
+		vecMsg := VecMsg{Shop: imgMsg.Shop, Position: imgMsg.Position, ModTime: imgMsg.ModTime, ObjID: imgMsg.ObjID, Img: imgMsg.Img, Vec: vec, Age: rspPred.Age, Gender: rspPred.Gender}
+		if visit, err = this.Identify(vecMsg); err != nil {
+			log.Errorf("got error %+v", err)
+			return
+		}
+		visits = append(visits, visit)
+	}
 	return
 }
 
@@ -246,28 +316,14 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 		idenUpdateDuration.Observe(duration)
 	}
 
-	var found bool
-	keyUid := fmt.Sprintf("%s", uid)
-	var ag *AgeGender
-	var val interface{}
-	if val, found = this.ageCache.Get(keyUid); found {
-		ag = val.(*AgeGender)
-	} else {
-		agePred := &AgePred{}
-		if _, err = PostFile(this.hc, this.ageServURL, vecMsg.Img, agePred); err != nil {
-			return
-		}
-		ag = &agePred.Prediction
-	}
-	this.ageCache.SetDefault(keyUid, ag)
 	visit = &Visit{
 		Uid:       uint64(uid),
 		VisitTime: uint64(vecMsg.ModTime),
 		Shop:      uint64(vecMsg.Shop),
 		Position:  uint32(vecMsg.Position),
-		Age:       uint32(ag.Age),
+		Age:       uint32(vecMsg.Age),
 	}
-	if ag.Gender != 0 {
+	if vecMsg.Gender != 0 {
 		visit.IsMale = true
 	}
 	log.Infof("objID: %+v, visit3: %+v", vecMsg.ObjID, visit)

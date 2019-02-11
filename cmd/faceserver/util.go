@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	io "io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -12,23 +14,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-func PostFile(hc *http.Client, servURL string, img []byte, respObj interface{}) (duration time.Duration, err error) {
+func PostFiles(hc *http.Client, servURL string, imgs [][]byte, respObj interface{}) (duration time.Duration, err error) {
 	var resp *http.Response
+	var part io.Writer
 	t0 := time.Now()
 	reqBody := &bytes.Buffer{}
 	writer := multipart.NewWriter(reqBody)
-	//part, err := writer.CreateFormFile("data", "image.jpg") //generates "Content-Type: application/octet-stream"
-	partHeader := textproto.MIMEHeader{}
-	partHeader.Add("Content-Disposition", `form-data; name="data"; filename="image.jpg"`)
-	partHeader.Add("Content-Type", "image/jpeg")
-	part, err := writer.CreatePart(partHeader)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	if _, err = part.Write(img); err != nil {
-		err = errors.Wrap(err, "")
-		return
+	for i, img := range imgs {
+		//part, err := writer.CreateFormFile("data", "image.jpg") //generates "Content-Type: application/octet-stream"
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Add("Content-Disposition", fmt.Sprintf("form-data; name=\"data\"; filename=\"image%s.jpg\"", i))
+		partHeader.Add("Content-Type", "image/jpeg")
+		if part, err = writer.CreatePart(partHeader); err != nil {
+			err = errors.Wrap(err, "")
+			return
+		}
+		if _, err = part.Write(img); err != nil {
+			err = errors.Wrap(err, "")
+			return
+		}
 	}
 	writer.Close()
 	req, err := http.NewRequest("POST", servURL, reqBody)

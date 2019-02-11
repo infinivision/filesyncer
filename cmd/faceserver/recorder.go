@@ -30,19 +30,21 @@ func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
 	return
 }
 
-func (this *Recorder) Record(v *Visit) (err error) {
+func (this *Recorder) Record(visits []*Visit) (err error) {
 	var data []byte
-	if data, err = v.Marshal(); err != nil {
-		err = errors.Wrapf(err, "v: %+v", v)
-		return
-	}
-	_, _, err = this.producer.SendMessage(&sarama.ProducerMessage{
-		Topic: this.topic,
-		Value: sarama.ByteEncoder(data),
-	})
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return err
+	for _, v := range visits {
+		if data, err = v.Marshal(); err != nil {
+			err = errors.Wrapf(err, "v: %+v", v)
+			return
+		}
+		_, _, err = this.producer.SendMessage(&sarama.ProducerMessage{
+			Topic: this.topic,
+			Value: sarama.ByteEncoder(data),
+		})
+		if err != nil {
+			err = errors.Wrap(err, "")
+			return err
+		}
 	}
 	return
 }
