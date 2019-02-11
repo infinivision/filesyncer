@@ -209,7 +209,7 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		imgs = append(imgs, img.Img)
 	}
 	rspPreds := make([]RspPred, len(imgMsgs))
-	if duration, err = PostFiles(this.hc, this.servURL, imgs, rspPreds); err != nil {
+	if duration, err = PostFiles(this.hc, this.servURL, imgs, &rspPreds); err != nil {
 		log.Errorf("got error %+v", err)
 		return
 	}
@@ -218,11 +218,10 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		var data []byte
 		if data, err = base64.StdEncoding.DecodeString(rspPred.Embedding); err != nil {
 			err = errors.Wrapf(err, "base64 decode error")
-			log.Errorf("got error %+v", err)
 			return
 		}
 		if len(data)%SIZEOF_FLOAT32 != 0 {
-			log.Errorf("rspPred.Embedding length is incorrect, want times of %d, have %d", SIZEOF_FLOAT32, len(data))
+			err = errors.Errorf("rspPred.Embedding length is incorrect, want times of %d, have %d", SIZEOF_FLOAT32, len(data))
 			return
 		}
 		header := *(*reflect.SliceHeader)(unsafe.Pointer(&data))
@@ -237,7 +236,6 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		imgMsg := imgMsgs[i]
 		vecMsg := VecMsg{Shop: imgMsg.Shop, Position: imgMsg.Position, ModTime: imgMsg.ModTime, ObjID: imgMsg.ObjID, Img: imgMsg.Img, Vec: vec, Age: rspPred.Age, Gender: rspPred.Gender}
 		if visit, err = this.Identify(vecMsg); err != nil {
-			log.Errorf("got error %+v", err)
 			return
 		}
 		visits = append(visits, visit)

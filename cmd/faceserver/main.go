@@ -155,12 +155,12 @@ func main() {
 				imgMsgs = append(imgMsgs, img)
 				if len(imgMsgs) >= 10 {
 					handleImgMsgs(iden3, recorder, imgMsgs)
-					imgMsgs = make([]server.ImgMsg, 10)
+					imgMsgs = make([]server.ImgMsg, 0)
 				}
 			case <-tickCh:
 				if len(imgMsgs) != 0 {
 					handleImgMsgs(iden3, recorder, imgMsgs)
-					imgMsgs = make([]server.ImgMsg, 10)
+					imgMsgs = make([]server.ImgMsg, 0)
 				}
 			}
 		}
