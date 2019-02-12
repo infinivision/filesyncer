@@ -230,6 +230,7 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		header.Cap /= SIZEOF_FLOAT32
 		// Convert slice header to an []float32
 		vec := *(*[]float32)(unsafe.Pointer(&header))
+		log.Debugf("vec (length %d): %+v", len(vec), vec)
 		//predict result needs normalization
 		normalize(vec)
 
