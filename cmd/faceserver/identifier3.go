@@ -205,6 +205,9 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 	var imgs [][]byte
 	var visit *Visit
 	var duration time.Duration
+	if len(imgMsgs) == 0 {
+		return
+	}
 	for _, img := range imgMsgs {
 		imgs = append(imgs, img.Img)
 	}
@@ -214,7 +217,12 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		return
 	}
 	idenPredDuration.Observe(duration.Seconds())
+	log.Debugf("imgMsgs length %d, rspPreds (length %d): %+v", len(imgMsgs), len(rspPreds), rspPreds)
 	for i, rspPred := range rspPreds {
+		if rspPred.State != 0 {
+			// state!=0 indicates error, embedding could be empty.
+			continue
+		}
 		var data []byte
 		if data, err = base64.StdEncoding.DecodeString(rspPred.Embedding); err != nil {
 			err = errors.Wrapf(err, "base64 decode error")
