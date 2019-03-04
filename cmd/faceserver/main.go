@@ -73,6 +73,7 @@ type VecMsg struct {
 	Vec      []float32
 	Age      int
 	Gender   int
+	Quality  float32
 }
 
 func handleImgMsgs(iden3 *Identifier3, recorder *Recorder, imgMsgs []server.ImgMsg) {

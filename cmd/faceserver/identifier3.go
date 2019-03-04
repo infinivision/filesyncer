@@ -40,13 +40,15 @@ type AgeGender struct {
 	Gender int `json:"gender"`
 }
 
+//RspPred refers to https://github.com/deepinsight/mxnet-serving/tree/master/tvm
 type RspPred struct {
-	FileName  string `json:"filename"`
-	Embedding string `json:"embedding"`
-	Age       int    `json:"age"`
-	Gender    int    `json:"gender"`
-	PoseType  int    `json:"post_type"`
-	State     int    `json:"state"`
+	FileName  string  `json:"filename"`
+	Embedding string  `json:"embedding"`
+	Age       int     `json:"age"`
+	Gender    int     `json:"gender"`
+	PoseType  int     `json:"post_type"`
+	State     int     `json:"state"`
+	Quality   float32 `json:"quality"`
 }
 
 type Identifier3 struct {
@@ -243,7 +245,7 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 		normalize(vec)
 
 		imgMsg := imgMsgs[i]
-		vecMsg := VecMsg{Shop: imgMsg.Shop, Position: imgMsg.Position, ModTime: imgMsg.ModTime, ObjID: imgMsg.ObjID, Img: imgMsg.Img, Vec: vec, Age: rspPred.Age, Gender: rspPred.Gender}
+		vecMsg := VecMsg{Shop: imgMsg.Shop, Position: imgMsg.Position, ModTime: imgMsg.ModTime, ObjID: imgMsg.ObjID, Img: imgMsg.Img, Vec: vec, Age: rspPred.Age, Gender: rspPred.Gender, Quality: rspPred.Quality}
 		if visit, err = this.Identify(vecMsg); err != nil {
 			return
 		}
@@ -324,14 +326,14 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 	}
 
 	visit = &Visit{
+		PictureId: vecMsg.ObjID,
 		Uid:       uint64(uid),
 		VisitTime: uint64(vecMsg.ModTime),
 		Shop:      uint64(vecMsg.Shop),
 		Position:  uint32(vecMsg.Position),
 		Age:       uint32(vecMsg.Age),
-	}
-	if vecMsg.Gender != 0 {
-		visit.IsMale = true
+		Gender:    uint32(vecMsg.Gender),
+		Quality:   vecMsg.Quality,
 	}
 	log.Infof("objID: %+v, visit3: %+v", vecMsg.ObjID, visit)
 	return

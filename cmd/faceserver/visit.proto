@@ -8,11 +8,16 @@ option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 option (gogoproto.goproto_getters_all) = false;
 
+option java_outer_classname = "VisitProtos";
+option java_package = "cn.infinivision.olap.etl";
+
 message Visit {
-	uint64     Uid       = 1;
-	uint64     VisitTime = 2;
-	uint64     Shop      = 3;
-	uint32     Position  = 4;
-	uint32     Age       = 5;
-	bool       IsMale    = 6;
+	string     PictureId = 1;
+	float      Quality   = 2;
+	uint64     VisitTime = 3;
+	uint64     Shop      = 4;
+	uint32     Position  = 5;
+	uint64     Uid       = 6;
+	uint32     Age       = 7;
+	uint32     Gender    = 8;
 }

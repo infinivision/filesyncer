@@ -13,7 +13,7 @@ GOGOPROTO_PATH="${GOGOPROTO_ROOT}:${GOGOPROTO_ROOT}/protobuf"
 
 for dir in ${DIRS}; do
 	pushd ${dir}
-		protoc --gogoslick_out=. -I=.:"${GOGOPROTO_PATH}" *.proto
+		protoc --gofast_out=. -I=.:/opt/protobuf/src:"${GOGOPROTO_PATH}" *.proto
 		sed -i.bak -E 's/import _ \"gogoproto\"//g' *.pb.go
 		rm -f *.bak
 	popd
