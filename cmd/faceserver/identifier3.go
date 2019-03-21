@@ -250,6 +250,14 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 			return
 		}
 		visits = append(visits, visit)
+		if data, err = visit.Marshal(); err != nil {
+			err = errors.Wrapf(err, "protobuf encoding error: %+v", visit)
+			return
+		}
+		if err = this.rcli.RPush("visit_queue", data).Err(); err != nil {
+			err = errors.Wrapf(err, "failed to append record to visit_queue")
+			return
+		}
 	}
 	return
 }

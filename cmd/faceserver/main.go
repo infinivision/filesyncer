@@ -64,6 +64,10 @@ var (
 	showVer = flag.Bool("version", false, "Show version and quit.")
 )
 
+const (
+	InferBatchSize int = 5
+)
+
 type VecMsg struct {
 	Shop     uint64
 	Position uint32
@@ -154,7 +158,7 @@ func main() {
 				return
 			case img := <-imgCh:
 				imgMsgs = append(imgMsgs, img)
-				if len(imgMsgs) >= 10 {
+				if len(imgMsgs) >= InferBatchSize {
 					handleImgMsgs(iden3, recorder, imgMsgs)
 					imgMsgs = make([]server.ImgMsg, 0)
 				}
