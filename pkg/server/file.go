@@ -33,6 +33,7 @@ func newFileManager(cfg RetryCfg, cmdb *CmdbApi, imgCh chan<- ImgMsg) *fileManag
 }
 
 func (mgr *fileManager) addFile(req *pb.InitUploadReq) uint64 {
+	log.Debugf("addFile init %d", req.Seq)
 	mgr.Lock()
 	fid := mgr.allc
 	mgr.files[fid] = newFile(fid, req)
@@ -47,12 +48,15 @@ func (mgr *fileManager) addFile(req *pb.InitUploadReq) uint64 {
 }
 
 func (mgr *fileManager) appendFile(req *pb.UploadReq) pb.Code {
+	log.Debugf("file-%d: append file", req.ID)
 	mgr.Lock()
 
 	if f, ok := mgr.files[req.ID]; ok {
 		f.last = req.Index
+		code := f.append(req)
 		mgr.Unlock()
-		return f.append(req)
+		log.Debugf("file-%d: append file complete", req.ID)
+		return code
 	}
 
 	mgr.Unlock()
@@ -61,21 +65,25 @@ func (mgr *fileManager) appendFile(req *pb.UploadReq) pb.Code {
 }
 
 func (mgr *fileManager) continueUpload(id uint64) (bool, int32) {
+	log.Debugf("file-%d: continue file", req.ID)
 	mgr.RLock()
 
 	if f, ok := mgr.files[id]; ok {
 		idx := f.last
 		mgr.RUnlock()
+		log.Debugf("file-%d: continue file complete", req.ID)
 		return true, idx
 	}
 
 	mgr.RUnlock()
+	log.Debugf("file-%d: continue file with missing", req.ID)
 	return false, 0
 }
 
 func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 	fid := req.ID
 
+	log.Debugf("file-%d: complete file", req.ID)
 	mgr.RLock()
 	if f, ok := mgr.files[fid]; ok {
 		times := 0
@@ -88,13 +96,16 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 					times)
 			}
 
+			log.Debugf("file-%d: complete file start push to oss", req.ID)
 			objID, code := f.complete(req)
+			log.Debugf("file-%d: complete file end push to oss", req.ID)
 			if code != pb.CodeOSSError {
 				if mgr.imgCh != nil {
 					var shop uint64
 					var position uint32
 					var found bool
 					var err error
+					log.Debugf("file-%d: complete file start call position", req.ID)
 					if shop, position, found, err = mgr.cmdb.GetPosition(f.meta.Mac, f.meta.Camera); err != nil {
 						log.Warnf("GetPosition(%s, %s) failed with error %+v", f.meta.Mac, f.meta.Camera, err)
 					} else if !found {
@@ -107,13 +118,17 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 							err = errors.Wrap(err, "")
 							log.Errorf("%+v", err)
 						} else {
-							log.Infof("got an image from shop %v, mac %v, camera %v", shop, f.meta.Mac, f.meta.Camera)
+							log.Debugf("got an image from shop %v, mac %v, camera %v", shop, f.meta.Mac, f.meta.Camera)
 							mgr.imgCh <- ImgMsg{Shop: shop, Position: position, ModTime: f.meta.ModTime, ObjID: objID, Img: img}
+							log.Debugf("got an image from shop %v, mac %v, camera %v complete", shop, f.meta.Mac, f.meta.Camera)
 						}
+						log.Debugf("file-%d: complete file end call position", req.ID)
 					}
+					log.Debugf("file-%d: complete file end call position", req.ID)
 				}
 				mgr.remove(fid)
 				mgr.RUnlock()
+				log.Debugf("file-%d: complete file end", req.ID)
 				return code
 			}
 
@@ -128,6 +143,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 					times)
 				mgr.remove(fid)
 				mgr.RUnlock()
+				log.Debugf("file-%d: complete file end with over max times", req.ID)
 				return pb.CodeMaxRetries
 			}
 
@@ -136,6 +152,7 @@ func (mgr *fileManager) completeFile(req *pb.UploadCompleteReq) pb.Code {
 	}
 
 	mgr.RUnlock()
+	log.Debugf("file-%d: complete file with missing", req.ID)
 	return pb.CodeMissing
 }
 

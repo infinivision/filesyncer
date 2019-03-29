@@ -112,11 +112,13 @@ func (s *session) onReq(msg interface{}) error {
 }
 
 func (s *session) initUpload(req *pb.InitUploadReq) {
+	log.Debugf("do init %d", req.Seq)
 	s.doRsp(&pb.InitUploadRsp{
 		Seq:  req.Seq,
 		ID:   fileMgr.addFile(req),
 		Code: pb.CodeSucc,
 	})
+	log.Debugf("complete init %d", req.Seq)
 }
 
 func (s *session) upload(req *pb.UploadReq) {
