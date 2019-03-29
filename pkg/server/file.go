@@ -65,18 +65,18 @@ func (mgr *fileManager) appendFile(req *pb.UploadReq) pb.Code {
 }
 
 func (mgr *fileManager) continueUpload(id uint64) (bool, int32) {
-	log.Debugf("file-%d: continue file", req.ID)
+	log.Debugf("file-%d: continue file", id)
 	mgr.RLock()
 
 	if f, ok := mgr.files[id]; ok {
 		idx := f.last
 		mgr.RUnlock()
-		log.Debugf("file-%d: continue file complete", req.ID)
+		log.Debugf("file-%d: continue file complete", id)
 		return true, idx
 	}
 
 	mgr.RUnlock()
-	log.Debugf("file-%d: continue file with missing", req.ID)
+	log.Debugf("file-%d: continue file with missing", id)
 	return false, 0
 }
 
