@@ -29,10 +29,11 @@ require (
 	github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.37.0
+	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-ole/go-ole v1.2.1
 	github.com/go-redis/redis v6.14.1+incompatible
-	github.com/gogo/protobuf v1.0.0
-	github.com/golang/protobuf v1.2.0
+	github.com/gogo/protobuf v1.2.1
+	github.com/golang/protobuf v1.3.1
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c
 	github.com/gorilla/websocket v1.4.0
@@ -43,6 +44,8 @@ require (
 	github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
 	github.com/jonboulle/clockwork v0.1.0
+	github.com/kisielk/errcheck v1.2.0 // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/miekg/dns v1.0.8
 	github.com/minio/minio-go v6.0.2+incompatible
@@ -52,29 +55,32 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/petar/GoLLRB v0.0.0-20130427215148-53be0d36a84c
 	github.com/pierrec/lz4 v0.0.0-20181027085611-623b5a2f4d2a
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/prometheus/client_golang v0.8.0
-	github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5
-	github.com/prometheus/common v0.0.0-20180518154759-7600349dcfe1
-	github.com/prometheus/procfs v0.0.0-20180528183257-fe93d378a6b0
+	github.com/prometheus/client_golang v0.9.2
+	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
+	github.com/prometheus/common v0.2.0
+	github.com/prometheus/procfs v0.0.0-20190403104016-ea9eea638872
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/shirou/gopsutil v0.0.0-20180801053943-8048a2e9c577
 	github.com/shopify/sarama v1.20.1-0.20181214121743-94536b3e82d3 // indirect
-	github.com/sirupsen/logrus v1.0.5
+	github.com/sirupsen/logrus v1.4.1
 	github.com/soheilhy/cmux v0.1.4
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20171017195756-830351dc03c6
 	github.com/ugorji/go v1.1.1
 	github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18
 	github.com/youzan/go-nsq v0.0.0-20180306073406-048121fec907
-	golang.org/x/crypto v0.0.0-20180527072434-ab813273cd59
-	golang.org/x/net v0.0.0-20181106065722-10aee1819953
-	golang.org/x/sys v0.0.0-20180830151530-49385e6e1522
+	golang.org/x/crypto v0.0.0-20190403202508-8e1b8d32e692
+	golang.org/x/net v0.0.0-20190403144856-b630fd6fe46b
+	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
+	golang.org/x/sys v0.0.0-20190403152447-81d4e9dc473e
 	golang.org/x/text v0.3.0
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
+	golang.org/x/tools v0.0.0-20190403183509-8a44e74612bc // indirect
 	google.golang.org/genproto v0.0.0-20181127195345-31ac5d88444a
 	google.golang.org/grpc v1.16.0
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/gcfg.v1 v1.2.3
 	gopkg.in/warnings.v0 v0.1.2
 	gopkg.in/yaml.v2 v2.2.2
