@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/fagongzi/log"
 )
 
 // Get MAC of physical NICs on which an non-loopback IPv4 address is alive.

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fagongzi/log"
 	"github.com/hudl/fargo"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
