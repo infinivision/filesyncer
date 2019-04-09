@@ -1,5 +1,5 @@
 syntax = "proto3";
-package main;
+package server;
 
 import "gogoproto/gogo.proto";
 

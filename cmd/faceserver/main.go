@@ -81,7 +81,7 @@ type VecMsg struct {
 }
 
 func handleImgMsgs(iden3 *Identifier3, recorder *Recorder, imgMsgs []server.ImgMsg) {
-	var visits []*Visit
+	var visits []*server.Visit
 	var err error
 	if visits, err = iden3.DoBatch(imgMsgs); err != nil {
 		log.Errorf("got error: %+v", err)

@@ -203,9 +203,9 @@ func normalize(vec []float32) {
 	return
 }
 
-func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err error) {
+func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*server.Visit, err error) {
 	var imgs [][]byte
-	var visit *Visit
+	var visit *server.Visit
 	var duration time.Duration
 	if len(imgMsgs) == 0 {
 		return
@@ -262,7 +262,7 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*Visit, err 
 	return
 }
 
-func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
+func (this *Identifier3) Identify(vecMsg VecMsg) (visit *server.Visit, err error) {
 	var uid int64
 	var dbs []uint64
 	var distances []float32
@@ -333,7 +333,7 @@ func (this *Identifier3) Identify(vecMsg VecMsg) (visit *Visit, err error) {
 		idenUpdateDuration.Observe(duration)
 	}
 
-	visit = &Visit{
+	visit = &server.Visit{
 		PictureId: vecMsg.ObjID,
 		Uid:       uint64(uid),
 		VisitTime: uint64(vecMsg.ModTime),

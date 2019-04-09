@@ -1,21 +1,20 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
-	"regexp"
 	"sort"
-	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/montanaflynn/stats"
+	"github.com/go-redis/redis"
+	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -65,13 +64,15 @@ func (s *UserSorter) Less(i, j int) bool {
 }
 
 var (
+	redisAddr    = flag.String("redis-addr", "127.0.0.1:6379", "Addr: redis address")
 	ossAddr      = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
 	ossKey       = flag.String("oss-key", "HELLO", "oss client access key")
 	ossSecretKey = flag.String("oss-secret-key", "WORLD", "oss client access secret key")
 	ossUseSSL    = flag.Bool("oss-ssl", false, "oss client use ssl")
 	ossBucket    = flag.String("oss-bucket", "images", "oss bucket name")
+	dayStart     = flag.String("day-start", "", "Datatime: day start")
+	dayEnd       = flag.String("day-end", "", "Datatime: day end")
 
-	input  = flag.String("input", "faceserver.log", "faceserver log file")
 	output = flag.String("output", "", "output directory")
 )
 
@@ -113,101 +114,100 @@ func main() {
 	}))
 	srv := s3.New(sess)
 
-	uids := make(map[string][]AgeGender)
-	//2018/11/22 11:30:16.183633 [info] objID: a631f8a83ef140aa96ccc42836cb61f5, visit3: &Visit{Uid:3885,VisitTime:1542857407,Shop:1,Position:1,Age:27,IsMale:true,}
-	myExp := regexp.MustCompile("objID: (?P<objID>[0-9a-f]+), visit3:.*Uid:(?P<Uid>[0-9]+),.*Age:(?P<Age>[0-9]+),IsMale:(?P<IsMale>true|false)")
-	var logf *os.File
-	if logf, err = os.Open(*input); err != nil {
-		err = errors.Wrap(err, "")
-		log.Fatalf("got error %+v", err)
-	}
-	scanner := bufio.NewScanner(logf)
-	for scanner.Scan() {
-		match := myExp.FindStringSubmatch(scanner.Text())
-		if match != nil {
-			log.Infof("%v, %v, %v, %v", match[1], match[2], match[3], match[4])
-			objID := match[1]
-			uid := match[2]
-			var age int
-			if age, err = strconv.Atoi(match[3]); err != nil {
-				err = errors.Wrap(err, "")
-				log.Fatalf("got error %+v", err)
-			}
-			var isMale int
-			if match[4] == "true" {
-				isMale = 1
-			}
-			ag := AgeGender{
-				Age:    age,
-				IsMale: isMale,
-			}
-			var ags []AgeGender
-			var found bool
-			if ags, found = uids[uid]; !found {
-				if err = os.MkdirAll(fmt.Sprintf("%v/uid_%v", *output, uid), 0755); err != nil {
-					err = errors.Wrap(err, "")
-					log.Fatalf("got error %+v", err)
-				}
-			}
-			ags = append(ags, ag)
-			uids[uid] = ags
-			fp := fmt.Sprintf("%v/uid_%v/%v.jpg", *output, uid, objID)
-			if _, err = os.Stat(fp); err == nil {
-				log.Infof("%v already exist", fp)
-				continue
-			}
-			var img []byte
-			if img, err = s3Get(srv, objID); err != nil {
-				log.Fatalf("got error %+v", err)
-			}
-			var jpg *os.File
-			if jpg, err = os.OpenFile(fp, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0755); err != nil {
-				err = errors.Wrap(err, "")
-				log.Fatalf("got error %+v", err)
-			}
-			if _, err = jpg.Write(img); err != nil {
-				err = errors.Wrap(err, "")
-				log.Fatalf("got error %+v", err)
-			}
-			jpg.Close()
+	rcli := redis.NewClient(&redis.Options{
+		Addr:     *redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	var tsStart int64
+	tsEnd := time.Now().Unix()
+	if *dayStart != "" {
+		var tmpT time.Time
+		if tmpT, err = time.Parse(time.RFC3339, *dayStart); err != nil {
+			log.Fatal(err)
 		}
+		tsStart = tmpT.Unix()
+	}
+	if *dayEnd != "" {
+		var tmpT time.Time
+		if tmpT, err = time.Parse(time.RFC3339, *dayEnd); err != nil {
+			log.Fatal(err)
+		}
+		tsEnd = tmpT.Unix()
+	}
+	if tsStart >= tsEnd {
+		log.Fatal("invalid time range")
 	}
 
-	if err = scanner.Err(); err != nil {
-		err = errors.Wrap(err, "")
+	que := "visit_queue"
+	var qLen int64
+	if qLen, err = rcli.LLen(que).Result(); err != nil {
 		log.Fatal(err)
 	}
 
-	var users []User
-	fmt.Println("uid, pictures, age mean, age variance, gender mean, gender variance")
-	for uid, ags := range uids {
-		var ages []float64
-		var isMales []float64
-		for _, ag := range ags {
-			ages = append(ages, float64(ag.Age))
-			isMales = append(isMales, float64(ag.IsMale))
+	idxStart := sort.Search(int(qLen), func(i int) bool {
+		var recs []string
+		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			log.Fatal(err)
 		}
-		ageMean, _ := stats.Mean(ages)
-		ageVar, _ := stats.Variance(ages)
-		genderMean, _ := stats.Mean(isMales)
-		genderVar, _ := stats.Variance(isMales)
-		//fmt.Printf("%v\t%v\t%.2f\t%.2f\t%.2f\t%.2f\n", uid, len(ags), ageMean, ageVar, genderMean, genderVar)
-		user := User{
-			Uid:        uid,
-			Pictures:   len(ags),
-			AgeMean:    ageMean,
-			AgeVar:     ageVar,
-			GenderMean: genderMean,
-			GenderVar:  genderVar,
+		var visit server.Visit
+		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			log.Fatal(err)
 		}
-		users = append(users, user)
+		return int64(visit.VisitTime) >= tsStart
+	})
+	idxEnd := sort.Search(int(qLen), func(i int) bool {
+		var recs []string
+		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			log.Fatal(err)
+		}
+		var visit server.Visit
+		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			log.Fatal(err)
+		}
+		return int64(visit.VisitTime) >= tsEnd
+	})
+	if idxEnd <= idxStart {
+		log.Infof("fetched no pictures")
+		return
 	}
-	userSorter := UserSorter{
-		Users: users,
+
+	var recs []string
+	if recs, err = rcli.LRange(que, int64(idxStart), int64(idxEnd-1)).Result(); err != nil {
+		log.Fatal(err)
 	}
-	sort.Slice(userSorter.Users, userSorter.Less)
-	for _, user := range userSorter.Users {
-		fmt.Printf("%v\t%v\t%.2f\t%.2f\t%.2f\t%.2f\n", user.Uid, user.Pictures, user.AgeMean, user.AgeVar, user.GenderMean, user.GenderVar)
+	for _, rec := range recs {
+		var visit server.Visit
+		if err = visit.Unmarshal([]byte(rec)); err != nil {
+			log.Fatal(err)
+		}
+
+		objID := visit.PictureId
+		uid := visit.Uid
+		age := visit.Age
+		gender := visit.Gender
+		fp := fmt.Sprintf("%v/%v_%v_%v_%v.jpg", *output, uid, gender, age, objID)
+		if _, err = os.Stat(fp); err == nil {
+			log.Infof("%v already exist", fp)
+			continue
+		}
+		var img []byte
+		if img, err = s3Get(srv, objID); err != nil {
+			log.Fatalf("got error %+v", err)
+		}
+		var jpg *os.File
+		if jpg, err = os.OpenFile(fp, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0755); err != nil {
+			err = errors.Wrap(err, "")
+			log.Fatalf("got error %+v", err)
+		}
+		if _, err = jpg.Write(img); err != nil {
+			err = errors.Wrap(err, "")
+			log.Fatalf("got error %+v", err)
+		}
+		jpg.Close()
 	}
+
+	log.Infof("fetched %v pictures", len(recs))
 	return
 }

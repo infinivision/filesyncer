@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Shopify/sarama"
+	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/pkg/errors"
 )
 
@@ -30,7 +31,7 @@ func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
 	return
 }
 
-func (this *Recorder) Record(visits []*Visit) (err error) {
+func (this *Recorder) Record(visits []*server.Visit) (err error) {
 	var data []byte
 	for _, v := range visits {
 		if data, err = v.Marshal(); err != nil {
