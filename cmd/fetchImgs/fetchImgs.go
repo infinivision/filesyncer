@@ -19,50 +19,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type AgeGender struct {
-	Age    int
-	IsMale int
-}
-
-type User struct {
-	Uid        string
-	Pictures   int
-	AgeMean    float64
-	AgeVar     float64
-	GenderMean float64
-	GenderVar  float64
-}
-
-type UserSorter struct {
-	Users []User
-}
-
-// Less is part of sort.Interface.
-func (s *UserSorter) Less(i, j int) bool {
-	if s.Users[i].GenderVar < s.Users[j].GenderVar {
-		return true
-	}
-	if s.Users[j].GenderVar < s.Users[i].GenderVar {
-		return false
-	}
-	if s.Users[i].AgeVar < s.Users[j].AgeVar {
-		return true
-	}
-	if s.Users[j].AgeVar < s.Users[i].AgeVar {
-		return false
-	}
-	if s.Users[i].Pictures < s.Users[j].Pictures {
-		return true
-	}
-	if s.Users[j].Pictures < s.Users[i].Pictures {
-		return false
-	}
-	if s.Users[i].Uid < s.Users[j].Uid {
-		return true
-	}
-	return false
-}
-
 var (
 	redisAddr    = flag.String("redis-addr", "127.0.0.1:6379", "Addr: redis address")
 	ossAddr      = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
@@ -70,8 +26,8 @@ var (
 	ossSecretKey = flag.String("oss-secret-key", "WORLD", "oss client access secret key")
 	ossUseSSL    = flag.Bool("oss-ssl", false, "oss client use ssl")
 	ossBucket    = flag.String("oss-bucket", "images", "oss bucket name")
-	dayStart     = flag.String("day-start", "", "Datatime: day start")
-	dayEnd       = flag.String("day-end", "", "Datatime: day end")
+	dateStart    = flag.String("date-start", "", "Datatime: date start in RFC3339 format. For example: 2019-03-01T00:00:00+08:00")
+	dateEnd      = flag.String("date-end", "", "Datatime: date end in RFC3339 format")
 
 	output = flag.String("output", "", "output directory")
 )
@@ -122,37 +78,43 @@ func main() {
 
 	var tsStart int64
 	tsEnd := time.Now().Unix()
-	if *dayStart != "" {
+	if *dateStart != "" {
 		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *dayStart); err != nil {
+		if tmpT, err = time.Parse(time.RFC3339, *dateStart); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		tsStart = tmpT.Unix()
 	}
-	if *dayEnd != "" {
+	if *dateEnd != "" {
 		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *dayEnd); err != nil {
+		if tmpT, err = time.Parse(time.RFC3339, *dateEnd); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		tsEnd = tmpT.Unix()
 	}
 	if tsStart >= tsEnd {
-		log.Fatal("invalid time range")
+		err = errors.Wrapf(err, "")
+		log.Fatalf("invalid time range: %+v", err)
 	}
 
 	que := "visit_queue"
 	var qLen int64
 	if qLen, err = rcli.LLen(que).Result(); err != nil {
+		err = errors.Wrapf(err, "")
 		log.Fatal(err)
 	}
 
 	idxStart := sort.Search(int(qLen), func(i int) bool {
 		var recs []string
 		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		var visit server.Visit
 		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		return int64(visit.VisitTime) >= tsStart
@@ -160,26 +122,32 @@ func main() {
 	idxEnd := sort.Search(int(qLen), func(i int) bool {
 		var recs []string
 		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		var visit server.Visit
 		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 		return int64(visit.VisitTime) >= tsEnd
 	})
-	if idxEnd <= idxStart {
-		log.Infof("fetched no pictures")
+	if idxEnd <= idxStart || int64(idxStart) >= qLen {
+		log.Infof("There's no pictures in the given time window.")
 		return
+	} else {
+		log.Infof("There are %v pictures in the given time window.", idxEnd-idxStart)
 	}
 
 	var recs []string
 	if recs, err = rcli.LRange(que, int64(idxStart), int64(idxEnd-1)).Result(); err != nil {
+		err = errors.Wrapf(err, "")
 		log.Fatal(err)
 	}
 	for _, rec := range recs {
 		var visit server.Visit
 		if err = visit.Unmarshal([]byte(rec)); err != nil {
+			err = errors.Wrapf(err, "")
 			log.Fatal(err)
 		}
 
@@ -208,6 +176,6 @@ func main() {
 		jpg.Close()
 	}
 
-	log.Infof("fetched %v pictures", len(recs))
+	log.Infof("Fetched %v pictures", len(recs))
 	return
 }
