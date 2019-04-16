@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -26,14 +27,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fagongzi/log"
+	"github.com/go-redis/redis"
 	"github.com/infinivision/filesyncer/pkg/server"
 	"github.com/infinivision/filesyncer/pkg/version"
 	"github.com/infinivision/hyena/pkg/proxy"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
+	replayAddr = flag.String("addr-replay", "", "Addr: replay visit records from the given Redis queue")
 	addr       = flag.String("addr", "127.0.0.1:80", "Addr: file server listen at")
 	ossAddr    = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
 	metricAddr = flag.String("metric-addr", ":8000", "The address to listen on for metric pull requests.")
@@ -129,10 +137,6 @@ func main() {
 	)
 
 	imgCh := make(chan server.ImgMsg, 10000)
-	ctx, cancel := context.WithCancel(context.Background())
-	s := server.NewFileServer(parseCfg(), imgCh)
-	go s.Start()
-
 	mqs := strings.Split(*hyenaMqAddr, ",")
 	prophets := strings.Split(*hyenaPdAddr, ",")
 	var vdb proxy.Proxy
@@ -141,14 +145,23 @@ func main() {
 		log.Fatalf("got error %+v", err)
 	}
 
-	go func() {
-		var err error
-		iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *predictServURL, *redisAddr)
-		var recorder *Recorder
-		if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
+	iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *predictServURL, *redisAddr)
+	var recorder *Recorder
+	if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
+		log.Errorf("got error: %+v", err)
+		return
+	}
+	if *replayAddr != "" {
+		if err = replayVisitRecords(iden3, recorder); err != nil {
 			log.Errorf("got error: %+v", err)
-			return
 		}
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	s := server.NewFileServer(parseCfg(), imgCh)
+	go s.Start()
+	go func() {
 		var imgMsgs []server.ImgMsg
 		tickCh := time.Tick(50 * time.Millisecond)
 		for {
@@ -223,4 +236,78 @@ func parseCfg() *server.Cfg {
 	cfg.EurekaAddr = *eurekaAddr
 	cfg.EurekaApp = *eurekaApp
 	return cfg
+}
+
+func s3Get(srv *s3.S3, key string) (value []byte, err error) {
+	var out *s3.GetObjectOutput
+	out, err = srv.GetObject(&s3.GetObjectInput{
+		Bucket: ossBucket,
+		Key:    &key,
+	})
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	if value, err = ioutil.ReadAll(out.Body); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	return
+}
+
+func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
+	log.Infof("replaying visit records from %v...", *replayAddr)
+	var sess *session.Session
+	sess = session.Must(session.NewSession(&aws.Config{
+		Credentials:      credentials.NewStaticCredentials(*ossKey, *ossSecretKey, ""),
+		Endpoint:         aws.String(*ossAddr),
+		DisableSSL:       aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(true),
+		Region:           aws.String("default"),
+	}))
+	srv := s3.New(sess)
+	rcli1 := redis.NewClient(&redis.Options{
+		Addr:     *replayAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	var qLen int64
+	if qLen, err = rcli1.LLen("visit_queue").Result(); err != nil {
+		err = errors.Wrapf(err, "")
+		return
+	}
+	var idxStart int64
+	for idxStart = 0; idxStart < qLen; idxStart += int64(InferBatchSize) {
+		var recs []string
+		if recs, err = rcli1.LRange("visit_queue", int64(idxStart), int64(idxStart+int64(InferBatchSize)-1)).Result(); err != nil {
+			err = errors.Wrapf(err, "")
+			return
+		}
+		var imgMsgs []server.ImgMsg
+		var img []byte
+		for _, rec := range recs {
+			var visit server.Visit
+			if err = visit.Unmarshal([]byte(rec)); err != nil {
+				err = errors.Wrapf(err, "")
+				return
+			}
+
+			objID := visit.PictureId
+			if img, err = s3Get(srv, objID); err != nil {
+				err = errors.Wrapf(err, "")
+				return
+			}
+			imgMsg := server.ImgMsg{
+				Shop:     visit.Shop,
+				Position: visit.Position,
+				ModTime:  int64(visit.VisitTime),
+				ObjID:    objID,
+				Img:      img,
+			}
+			imgMsgs = append(imgMsgs, imgMsg)
+		}
+		handleImgMsgs(iden3, recorder, imgMsgs)
+	}
+	log.Infof("replayed visit records from %v...", qLen, *replayAddr)
+	return
 }
