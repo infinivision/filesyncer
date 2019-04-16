@@ -41,11 +41,13 @@ import (
 )
 
 var (
-	replayAddr = flag.String("addr-replay", "", "Addr: replay visit records from the given Redis queue")
-	addr       = flag.String("addr", "127.0.0.1:80", "Addr: file server listen at")
-	ossAddr    = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
-	metricAddr = flag.String("metric-addr", ":8000", "The address to listen on for metric pull requests.")
-	pprof      = flag.String("addr-pprof", "", "Addr: pprof http server address")
+	replayAddr      = flag.String("addr-replay", "", "Addr: replay visit records from the given Redis queue")
+	replayDateStart = flag.String("replay-date-start", "", "Datatime: date start in RFC3339 format. For example: 2019-03-01T00:00:00+08:00")
+	replayDateEnd   = flag.String("replay-date-end", "", "Datatime: date end in RFC3339 format.")
+	addr            = flag.String("addr", "127.0.0.1:80", "Addr: file server listen at")
+	ossAddr         = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
+	metricAddr      = flag.String("metric-addr", ":8000", "The address to listen on for metric pull requests.")
+	pprof           = flag.String("addr-pprof", "", "Addr: pprof http server address")
 
 	ossKey       = flag.String("oss-key", "PA1H2FSS60OKVFHD8D4Z", "oss client access key")
 	ossSecretKey = flag.String("oss-secret-key", "Ad2VqYkv4R4KIDnk5GRMn09mOCAUv535zKe8R6oh", "oss client access secret key")
@@ -271,6 +273,30 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+
+	var tsStart int64
+	tsEnd := time.Now().Unix()
+	if *replayDateStart != "" {
+		var tmpT time.Time
+		if tmpT, err = time.Parse(time.RFC3339, *replayDateStart); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		tsStart = tmpT.Unix()
+	}
+	if *replayDateEnd != "" {
+		var tmpT time.Time
+		if tmpT, err = time.Parse(time.RFC3339, *replayDateEnd); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		tsEnd = tmpT.Unix()
+	}
+	if tsStart >= tsEnd {
+		err = errors.Errorf("invalid time range: %s - %s", *replayDateStart, *replayDateEnd)
+		return
+	}
+
 	var qLen int64
 	if qLen, err = rcli1.LLen("visit_queue").Result(); err != nil {
 		err = errors.Wrapf(err, "")
@@ -290,6 +316,9 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 			if err = visit.Unmarshal([]byte(rec)); err != nil {
 				err = errors.Wrapf(err, "")
 				return
+			}
+			if int64(visit.VisitTime) < tsStart || int64(visit.VisitTime) >= tsEnd {
+				continue
 			}
 
 			objID := visit.PictureId

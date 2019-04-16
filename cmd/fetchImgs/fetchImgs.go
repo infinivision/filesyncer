@@ -95,8 +95,8 @@ func main() {
 		tsEnd = tmpT.Unix()
 	}
 	if tsStart >= tsEnd {
-		err = errors.Wrapf(err, "")
-		log.Fatalf("invalid time range: %+v", err)
+		err = errors.Errorf("invalid time range: %s - %s", *dateStart, *dateEnd)
+		log.Fatal(err)
 	}
 
 	que := "visit_queue"
