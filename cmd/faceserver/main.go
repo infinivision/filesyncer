@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	runPprof "runtime/pprof"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -259,6 +260,7 @@ func s3Get(srv *s3.S3, key string) (value []byte, err error) {
 
 func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 	log.Infof("replaying visit records from %v...", *replayAddr)
+	que := "visit_queue"
 	var sess *session.Session
 	sess = session.Must(session.NewSession(&aws.Config{
 		Credentials:      credentials.NewStaticCredentials(*ossKey, *ossSecretKey, ""),
@@ -268,7 +270,7 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 		Region:           aws.String("default"),
 	}))
 	srv := s3.New(sess)
-	rcli1 := redis.NewClient(&redis.Options{
+	rcli := redis.NewClient(&redis.Options{
 		Addr:     *replayAddr,
 		Password: "", // no password set
 		DB:       0,  // use default DB
@@ -298,14 +300,48 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 	}
 
 	var qLen int64
-	if qLen, err = rcli1.LLen("visit_queue").Result(); err != nil {
+	if qLen, err = rcli.LLen(que).Result(); err != nil {
 		err = errors.Wrapf(err, "")
 		return
 	}
-	var idxStart int64
-	for idxStart = 0; idxStart < qLen; idxStart += int64(InferBatchSize) {
+
+	// determine index range with binary search
+	idxStart := sort.Search(int(qLen), func(i int) bool {
 		var recs []string
-		if recs, err = rcli1.LRange("visit_queue", int64(idxStart), int64(idxStart+int64(InferBatchSize)-1)).Result(); err != nil {
+		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		var visit server.Visit
+		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		return int64(visit.VisitTime) >= tsStart
+	})
+	idxEnd := sort.Search(int(qLen), func(i int) bool {
+		var recs []string
+		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		var visit server.Visit
+		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
+			err = errors.Wrapf(err, "")
+			log.Fatal(err)
+		}
+		return int64(visit.VisitTime) >= tsEnd
+	})
+	if idxEnd <= idxStart || int64(idxStart) >= qLen {
+		log.Infof("There's no pictures in the given time window.")
+		return
+	} else {
+		log.Infof("There are %v pictures in the given time window.", idxEnd-idxStart)
+	}
+
+	for ; idxStart < idxEnd; idxStart += InferBatchSize {
+		var recs []string
+		if recs, err = rcli.LRange(que, int64(idxStart), int64(idxStart+InferBatchSize-1)).Result(); err != nil {
 			err = errors.Wrapf(err, "")
 			return
 		}
@@ -337,6 +373,6 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 		}
 		handleImgMsgs(iden3, recorder, imgMsgs)
 	}
-	log.Infof("replayed visit records from %v...", qLen, *replayAddr)
+	log.Infof("replayed %v visit records from %v...", qLen, *replayAddr)
 	return
 }

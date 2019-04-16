@@ -106,6 +106,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// determine index range with binary search
 	idxStart := sort.Search(int(qLen), func(i int) bool {
 		var recs []string
 		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
