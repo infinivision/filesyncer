@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/signal"
 	runPprof "runtime/pprof"
-	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -276,72 +275,14 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 		DB:       0,  // use default DB
 	})
 
-	var tsStart int64
-	tsEnd := time.Now().Unix()
-	if *replayDateStart != "" {
-		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *replayDateStart); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		tsStart = tmpT.Unix()
-	}
-	if *replayDateEnd != "" {
-		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *replayDateEnd); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		tsEnd = tmpT.Unix()
-	}
-	if tsStart >= tsEnd {
-		err = errors.Errorf("invalid time range: %s - %s", *replayDateStart, *replayDateEnd)
-		return
+	var idxStart, idxEnd int64
+	if idxStart, idxEnd, err = server.GetVisitIdxRange(rcli, que, *replayDateStart, *replayDateEnd); err != nil {
+		log.Fatal(err)
 	}
 
-	var qLen int64
-	if qLen, err = rcli.LLen(que).Result(); err != nil {
-		err = errors.Wrapf(err, "")
-		return
-	}
-
-	// determine index range with binary search
-	idxStart := sort.Search(int(qLen), func(i int) bool {
+	for idxCur := idxStart; idxCur < idxEnd; idxCur += int64(InferBatchSize) {
 		var recs []string
-		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		var visit server.Visit
-		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		return int64(visit.VisitTime) >= tsStart
-	})
-	idxEnd := sort.Search(int(qLen), func(i int) bool {
-		var recs []string
-		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		var visit server.Visit
-		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		return int64(visit.VisitTime) >= tsEnd
-	})
-	if idxEnd <= idxStart || int64(idxStart) >= qLen {
-		log.Infof("There's no pictures in the given time window.")
-		return
-	} else {
-		log.Infof("There are %v pictures in the given time window.", idxEnd-idxStart)
-	}
-
-	for ; idxStart < idxEnd; idxStart += InferBatchSize {
-		var recs []string
-		if recs, err = rcli.LRange(que, int64(idxStart), int64(idxStart+InferBatchSize-1)).Result(); err != nil {
+		if recs, err = rcli.LRange(que, idxCur, idxCur+int64(InferBatchSize)-1).Result(); err != nil {
 			err = errors.Wrapf(err, "")
 			return
 		}
@@ -352,9 +293,6 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 			if err = visit.Unmarshal([]byte(rec)); err != nil {
 				err = errors.Wrapf(err, "")
 				return
-			}
-			if int64(visit.VisitTime) < tsStart || int64(visit.VisitTime) >= tsEnd {
-				continue
 			}
 
 			objID := visit.PictureId
@@ -373,6 +311,6 @@ func replayVisitRecords(iden3 *Identifier3, recorder *Recorder) (err error) {
 		}
 		handleImgMsgs(iden3, recorder, imgMsgs)
 	}
-	log.Infof("replayed %v visit records from %v...", qLen, *replayAddr)
+	log.Infof("replayed %v visit records from %v...", idxEnd-idxStart, *replayAddr)
 	return
 }

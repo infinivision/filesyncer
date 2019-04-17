@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"sort"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -76,68 +74,10 @@ func main() {
 		DB:       0,  // use default DB
 	})
 
-	var tsStart int64
-	tsEnd := time.Now().Unix()
-	if *dateStart != "" {
-		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *dateStart); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		tsStart = tmpT.Unix()
-	}
-	if *dateEnd != "" {
-		var tmpT time.Time
-		if tmpT, err = time.Parse(time.RFC3339, *dateEnd); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		tsEnd = tmpT.Unix()
-	}
-	if tsStart >= tsEnd {
-		err = errors.Errorf("invalid time range: %s - %s", *dateStart, *dateEnd)
-		log.Fatal(err)
-	}
-
 	que := "visit_queue"
-	var qLen int64
-	if qLen, err = rcli.LLen(que).Result(); err != nil {
-		err = errors.Wrapf(err, "")
+	var idxStart, idxEnd int64
+	if idxStart, idxEnd, err = server.GetVisitIdxRange(rcli, que, *dateStart, *dateEnd); err != nil {
 		log.Fatal(err)
-	}
-
-	// determine index range with binary search
-	idxStart := sort.Search(int(qLen), func(i int) bool {
-		var recs []string
-		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		var visit server.Visit
-		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		return int64(visit.VisitTime) >= tsStart
-	})
-	idxEnd := sort.Search(int(qLen), func(i int) bool {
-		var recs []string
-		if recs, err = rcli.LRange(que, int64(i), int64(i)).Result(); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		var visit server.Visit
-		if err = visit.Unmarshal([]byte(recs[0])); err != nil {
-			err = errors.Wrapf(err, "")
-			log.Fatal(err)
-		}
-		return int64(visit.VisitTime) >= tsEnd
-	})
-	if idxEnd <= idxStart || int64(idxStart) >= qLen {
-		log.Infof("There's no pictures in the given time window.")
-		return
-	} else {
-		log.Infof("There are %v pictures in the given time window.", idxEnd-idxStart)
 	}
 
 	var recs []string

@@ -214,7 +214,7 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*server.Visi
 		imgs = append(imgs, img.Img)
 	}
 	rspPreds := make([]RspPred, len(imgMsgs))
-	if duration, err = PostFiles(this.hc, this.servURL, imgs, &rspPreds); err != nil {
+	if duration, err = server.PostFiles(this.hc, this.servURL, imgs, &rspPreds); err != nil {
 		log.Errorf("got error %+v", err)
 		return
 	}
