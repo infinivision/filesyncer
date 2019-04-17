@@ -67,6 +67,7 @@ func (m *Monitor) handlePrepare(file string) {
 	if fileSize == 0 {
 		log.Warnf("%s is empty", file)
 		_ = os.Remove(file)
+		m.completeNotify()
 		return
 	}
 	cnt := fileSize / int64(m.cfg.Chunk)
