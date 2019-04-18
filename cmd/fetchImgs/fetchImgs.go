@@ -95,7 +95,7 @@ func main() {
 	}
 
 	numFetched := 0
-	batchSize := int64(100)
+	batchSize := int64(1000)
 	for idxCur := idxStart; idxCur < idxEnd; idxCur += batchSize {
 		var recs []string
 		if recs, err = rcli.LRange(que, idxCur, idxCur+batchSize-1).Result(); err != nil {
