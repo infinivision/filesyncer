@@ -204,6 +204,7 @@ func normalize(vec []float32) {
 }
 
 func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*server.Visit, err error) {
+	var filenames []string
 	var imgs [][]byte
 	var visit *server.Visit
 	var duration time.Duration
@@ -211,10 +212,11 @@ func (this *Identifier3) DoBatch(imgMsgs []server.ImgMsg) (visits []*server.Visi
 		return
 	}
 	for _, img := range imgMsgs {
+		filenames = append(filenames, img.ObjID)
 		imgs = append(imgs, img.Img)
 	}
 	rspPreds := make([]RspPred, len(imgMsgs))
-	if duration, err = server.PostFiles(this.hc, this.servURL, imgs, &rspPreds); err != nil {
+	if duration, err = server.PostFiles(this.hc, this.servURL, filenames, imgs, &rspPreds); err != nil {
 		log.Errorf("got error %+v", err)
 		return
 	}

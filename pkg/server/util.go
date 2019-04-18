@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func PostFiles(hc *http.Client, servURL string, imgs [][]byte, respObj interface{}) (duration time.Duration, err error) {
+func PostFiles(hc *http.Client, servURL string, filenames []string, imgs [][]byte, respObj interface{}) (duration time.Duration, err error) {
 	var resp *http.Response
 	var part io.Writer
 	t0 := time.Now()
@@ -26,7 +26,7 @@ func PostFiles(hc *http.Client, servURL string, imgs [][]byte, respObj interface
 	for i, img := range imgs {
 		//part, err := writer.CreateFormFile("data", "image.jpg") //generates "Content-Type: application/octet-stream"
 		partHeader := textproto.MIMEHeader{}
-		disposition := fmt.Sprintf("form-data; name=\"data\"; filename=\"image%d.jpg\"", i)
+		disposition := fmt.Sprintf("form-data; name=\"data\"; filename=\"%s\"", filenames[i])
 		log.Debugf("disposition: %s", disposition)
 		partHeader.Add("Content-Disposition", disposition)
 		partHeader.Add("Content-Type", "image/jpeg")
