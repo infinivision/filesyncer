@@ -43,9 +43,11 @@ require (
 	github.com/infinivision/hyena v0.0.0-20190212022234-f9f65afd34f5
 	github.com/infinivision/prophet v0.0.0-20181120130722-9d348e424ca3
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/jonboulle/clockwork v0.1.0
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/lib/pq v1.1.0
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/miekg/dns v1.0.8
 	github.com/minio/minio-go v6.0.2+incompatible

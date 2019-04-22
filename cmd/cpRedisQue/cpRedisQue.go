@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	fromRedisAddr = flag.String("from-redis-addr", "172.19.0.103:6379", "Addr: from redis address")
+	fromRedisAddr = flag.String("from-redis-addr", "172.19.0.16:30379", "Addr: from redis address")
 	toRedisAddr   = flag.String("to-redis-addr", "172.19.0.101:6379", "Addr: to redis address")
 	que           = "visit_queue"
 	batchSize     = int64(1000)

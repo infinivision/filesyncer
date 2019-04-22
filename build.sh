@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIRS="cmd/faceserver cmd/server cmd/fetchImgs cmd/cpRedisQue"
+DIRS="cmd/faceserver cmd/server cmd/fetchImgs cmd/cpRedisQue cmd/replayVisits"
 DIRS_ARM="cmd/faceclient"
 PKG_VERSION="github.com/infinivision/filesyncer/pkg/version"
 
