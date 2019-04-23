@@ -37,7 +37,8 @@ func main() {
 		}
 		if intUid, err = strconv.ParseUint(sUid, 10, 64); err != nil {
 			err = errors.Errorf("invalid uid: %v", sUid)
-			log.Fatal(err)
+			log.Errorf("got error %+v", err)
+			return
 		}
 		intUids[intUid] = 0
 	}
@@ -51,7 +52,8 @@ func main() {
 		db, err = sqlx.Connect("postgres", *destPgUrl)
 		if err != nil {
 			err = errors.Wrapf(err, "")
-			log.Fatal(err)
+			log.Errorf("got error: %+v", err)
+			return
 		}
 		db.SetMaxOpenConns(1)
 	} else if *destMqAddr != "" {
@@ -62,7 +64,8 @@ func main() {
 		mqAddrs := strings.Split(*destMqAddr, ",")
 		if mqProd, err = sarama.NewSyncProducer(mqAddrs, config); err != nil {
 			err = errors.Wrap(err, "")
-			log.Fatal(err)
+			log.Errorf("got error %+v", err)
+			return
 		}
 	} else {
 		fmt.Println("requires one of dest-pg-url and dest-mq-addr")
@@ -78,7 +81,8 @@ func main() {
 	que := "visit_queue"
 	var idxStart, idxEnd int64
 	if idxStart, idxEnd, err = server.GetVisitIdxRange(rcli, que, *dateStart, *dateEnd); err != nil {
-		log.Fatal(err)
+		log.Errorf("got error %+v", err)
+		return
 	}
 
 	numFetched := 0
@@ -87,7 +91,8 @@ func main() {
 		var recs []string
 		if recs, err = rcli.LRange(que, idxCur, idxCur+batchSize-1).Result(); err != nil {
 			err = errors.Wrapf(err, "")
-			log.Fatal(err)
+			log.Errorf("got error %+v", err)
+			return
 		}
 		for _, rec := range recs {
 			var visit server.Visit
@@ -105,13 +110,16 @@ func main() {
 
 			if db != nil {
 				vt := time.Unix(int64(visit.VisitTime), 0).Format(time.RFC3339)
-				if _, err = db.Query("SELECT insert_user($1, $2, $3, $4, $5, $6)", visit.Uid, visit.PictureId, visit.Quality, visit.Age, visit.Gender, vt); err != nil {
+				// Note: If db.Query is used, then the connection will not be released to pool since the cursor is not closed.
+				if _, err = db.Exec("SELECT insert_user($1, $2, $3, $4, $5, $6)", visit.Uid, visit.PictureId, visit.Quality, visit.Age, visit.Gender, vt); err != nil {
 					err = errors.Wrapf(err, "")
-					log.Fatal(err)
+					log.Errorf("got error %+v", err)
+					return
 				}
-				if _, err = db.Query("SELECT insert_visit_event($1, $2, $3, $4)", visit.Shop, visit.Uid, visit.Position, vt); err != nil {
+				if _, err = db.Exec("SELECT insert_visit_event($1, $2, $3, $4)", visit.Shop, visit.Uid, visit.Position, vt); err != nil {
 					err = errors.Wrapf(err, "")
-					log.Fatal(err)
+					log.Errorf("got error %+v", err)
+					return
 				}
 			}
 
