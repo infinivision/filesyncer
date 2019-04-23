@@ -48,6 +48,7 @@ var (
 	ossAddr         = flag.String("addr-oss", "127.0.0.1:9000", "Addr: oss server")
 	metricAddr      = flag.String("metric-addr", ":8000", "The address to listen on for metric pull requests.")
 	pprof           = flag.String("addr-pprof", "", "Addr: pprof http server address")
+	destPgUrl       = flag.String("dest-pg-url", "postgres://postgres:@127.0.0.1:5432/postgres", "PostgreSQL datasource in format\"postgres://username:password@host:port/dbname\"")
 
 	ossKey       = flag.String("oss-key", "PA1H2FSS60OKVFHD8D4Z", "oss client access key")
 	ossSecretKey = flag.String("oss-secret-key", "Ad2VqYkv4R4KIDnk5GRMn09mOCAUv535zKe8R6oh", "oss client access secret key")
@@ -149,7 +150,7 @@ func main() {
 
 	iden3 := NewIdentifier3(vdb, float32(*identifyDisThr2), float32(*identifyDisThr3), *predictServURL, *redisAddr)
 	var recorder *Recorder
-	if recorder, err = NewRecorder(mqs, "visits3"); err != nil {
+	if recorder, err = NewRecorder(*destPgUrl); err != nil {
 		log.Errorf("got error: %+v", err)
 		return
 	}

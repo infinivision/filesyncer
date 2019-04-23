@@ -19,7 +19,7 @@ import (
 
 var (
 	redisAddr  = flag.String("redis-addr", "", "Addr: redis address")
-	destPgUrl  = flag.String("dest-pg-url", "", "PostgreSQL datasource in format\"%s:%s@%s:%s/%s\", username, password, host, port, database.")
+	destPgUrl  = flag.String("dest-pg-url", "", "PostgreSQL datasource in format\"postgres://username:password@host:port/dbname\"")
 	destMqAddr = flag.String("dest-mq-addr", "", "List of mq addr.")
 	dateStart  = flag.String("date-start", "", "Datatime: date start in RFC3339 format. For example: 2019-03-01T00:00:00+08:00")
 	dateEnd    = flag.String("date-end", "", "Datatime: date end in RFC3339 format")
@@ -111,12 +111,12 @@ func main() {
 			if db != nil {
 				vt := time.Unix(int64(visit.VisitTime), 0).Format(time.RFC3339)
 				// Note: If db.Query is used, then the connection will not be released to pool since the cursor is not closed.
-				if _, err = db.Exec("SELECT insert_user($1, $2, $3, $4, $5, $6)", visit.Uid, visit.PictureId, visit.Quality, visit.Age, visit.Gender, vt); err != nil {
+				if _, err = db.Exec("SELECT insert_user($1, $2, $3, $4, $5, $6)", visit.Uid, visit.PictureId, visit.Quality, visit.Gender, visit.Age, vt); err != nil {
 					err = errors.Wrapf(err, "")
 					log.Errorf("got error %+v", err)
 					return
 				}
-				if _, err = db.Exec("SELECT insert_visit_event($1, $2, $3, $4)", visit.Shop, visit.Uid, visit.Position, vt); err != nil {
+				if _, err = db.Exec("SELECT insert_visit_event($1, $2, $3, $4, $5, $6)", visit.Shop, visit.Uid, visit.Position, visit.Gender, visit.Age, vt); err != nil {
 					err = errors.Wrapf(err, "")
 					log.Errorf("got error %+v", err)
 					return
@@ -136,6 +136,7 @@ func main() {
 		}
 	}
 
+	fmt.Println()
 	log.Infof("Replayed %v visit records", numFetched)
 	return
 }

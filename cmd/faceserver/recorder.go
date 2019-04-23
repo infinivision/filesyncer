@@ -1,50 +1,47 @@
 package main
 
 import (
-	"github.com/Shopify/sarama"
+	"time"
+
 	"github.com/infinivision/filesyncer/pkg/server"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 )
 
 type Recorder struct {
-	mqAddrs  []string
-	topic    string
-	producer sarama.SyncProducer
+	destPgUrl string
+	db        *sqlx.DB
 }
 
-func NewRecorder(mqAddrs []string, topic string) (rcd *Recorder, err error) {
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Retry.Max = 10
-	config.Producer.Return.Successes = true
-	producer, err := sarama.NewSyncProducer(mqAddrs, config)
+func NewRecorder(destPgUrl string) (rcd *Recorder, err error) {
+	// this Pings the database trying to connect, panics on error
+	// use sqlx.Open() for sql.Open() semantics
+	var db *sqlx.DB
+	db, err = sqlx.Connect("postgres", destPgUrl)
 	if err != nil {
-		err = errors.Wrap(err, "")
-		return nil, err
+		err = errors.Wrapf(err, "")
+		return
 	}
-
+	db.SetMaxOpenConns(1)
 	rcd = &Recorder{
-		mqAddrs:  mqAddrs,
-		topic:    topic,
-		producer: producer,
+		destPgUrl: destPgUrl,
+		db:        db,
 	}
 	return
 }
 
 func (this *Recorder) Record(visits []*server.Visit) (err error) {
-	var data []byte
-	for _, v := range visits {
-		if data, err = v.Marshal(); err != nil {
-			err = errors.Wrapf(err, "v: %+v", v)
+	for _, visit := range visits {
+		vt := time.Unix(int64(visit.VisitTime), 0).Format(time.RFC3339)
+		// Note: If db.Query is used, then the connection will not be released to pool since the cursor is not closed.
+		if _, err = this.db.Exec("SELECT insert_user($1, $2, $3, $4, $5, $6)", visit.Uid, visit.PictureId, visit.Quality, visit.Gender, visit.Age, vt); err != nil {
+			err = errors.Wrapf(err, "")
 			return
 		}
-		_, _, err = this.producer.SendMessage(&sarama.ProducerMessage{
-			Topic: this.topic,
-			Value: sarama.ByteEncoder(data),
-		})
-		if err != nil {
-			err = errors.Wrap(err, "")
-			return err
+		if _, err = this.db.Exec("SELECT insert_visit_event($1, $2, $3, $4, $5, $6)", visit.Shop, visit.Uid, visit.Position, visit.Gender, visit.Age, vt); err != nil {
+			err = errors.Wrapf(err, "")
+			return
 		}
 	}
 	return
