@@ -71,6 +71,7 @@ UPDATE visit_stats_uv SET frequent_users='{}'::roaringbitmap;
 SELECT shop_id, precision, visit_time, rb_cardinality(frequent_users) AS frequent_users, rb_cardinality(total) AS total FROM visit_stats_uv ORDER BY shop_id, precision, visit_time;
 SELECT visit_time, rb_andnot_cardinality(total, frequent_users) AS first_users, rb_and_cardinality(total, frequent_users) AS multi_users FROM visit_stats_uv WHERE shop_id=2 AND precision='day' ORDER BY visit_time;
 SELECT rb_cardinality(rb_or_agg(total)) FROM (SELECT total FROM visit_stats_uv WHERE shop_id=2 AND precision='day' AND visit_time>=timestamptz 'now' - interval '40 days' AND visit_time<timestamptz 'now' - interval '10 days' ORDER BY visit_time) foo;
+SELECT get_shuke_stats(2, '2019-04-18T00:00:00+08:00', 'now');
 
 SELECT * from cron.job;
 SELECT cron.unschedule(1);
